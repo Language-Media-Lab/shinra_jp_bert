@@ -14,6 +14,17 @@ from shinra_jp_scorer.scoring import liner2dict, get_annotation, get_ene
 
 FLAG_ATTRS = ['総称']
 
+#5W1Hと質問文の対応
+attribute_to_qa_LIST = {
+    "who":"誰", 
+    "what":"なん", 
+    "where":"どこ",
+    "when":"いつ",
+    "how":"いくつ" 
+}
+
+
+
 def iter_files(path):
     """Walk through all files located under a root path."""
     if os.path.isfile(path):
@@ -36,6 +47,13 @@ def make_split_data(data_set, split_nums=[0.9]):
 
     return split_datasets
 
+
+def get_attribute_to_qa(path):
+'''
+属性名と[5W1H]の対応付けアノテーションを辞書型として取得
+'''
+    with open(path ,"r", encoding = "utf_8") as f:
+        return [json.loads(line) for line in f.readlines()]
 
 def process(args, dataset, attributes):
     data_size = len(dataset.keys())
@@ -120,14 +138,18 @@ def process(args, dataset, attributes):
                                     print('WARNING! answer text is N/A', q, ans, paragraph[answer_start_position:answer_end_position], title, page_id)
                                     continue
                                 answers.append({"answer_start": answer_start_position, "answer_end": answer_end_position, "text": paragraph[answer_start_position:answer_end_position]})
-
-                        qas.append({"question": q, "id": q_id, "answers": answers})
+                        
+                        ## create question 
+                        question = title + "の" + q + "は?"
+                        qas.append({"question": question, "id": q_id, "answers": answers})
 
                 for q in set(attributes) - set(attrs.keys()):
                     if q in FLAG_ATTRS:
                         flags[q] = False
                     else:
-                        qas.append({"question": q, "id": str(page_id) + '_' + str(len(paragraphs)) + '_' + str(attributes.index(q)), "answers": []})
+                        ## create question 
+                        question = title + "の" + q + "は?"
+                        qas.append({"question": question, "id": str(page_id) + '_' + str(len(paragraphs)) + '_' + str(attributes.index(q)), "answers": []})
                 paragraphs.append({"context": paragraph, "start_line":para_start_line_num, "end_line":para_end_line_num, "qas": qas})
                 paragraph = ''
 
@@ -191,7 +213,9 @@ def process_formal(args):
                     q_idx += 1
                     q_id = str(page_id) + '_' + str(len(paragraphs)) + '_' + str(q_idx)
                     answers = []
-                    qas.append({"answers": answers, "question": q, "id": q_id})
+                    ## create question 
+                    question = title + "の" + q + "は?"
+                    qas.append({"answers": answers, "question": question, "id": q_id})
 
                 paragraphs.append({"context": paragraph, "qas": qas, "start_line":para_start_line_num, "end_line":para_end_line_num})
                 paragraph = ''
@@ -207,6 +231,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--input', type=str, default=None)
     parser.add_argument('--output', type=str, default=None)
+    parser.add_argument('--attribute_to_qa', type=str, default=None)
     parser.add_argument('--split_dev', type=float, default=0.85,
                         help='start point of dev data')
     parser.add_argument('--split_test', type=float, default=0.90,
@@ -220,6 +245,7 @@ def main():
 
 
     answer = get_annotation(args.input)
+    attribute_to_qa = get_attribute_to_qa(args.attribute_to_qa) #属性名と5W1Hの対応付けデータ
     ene = get_ene(answer)
     id_dict, html, plain, attributes = liner2dict(answer, ene)
     print('attributes:', attributes)

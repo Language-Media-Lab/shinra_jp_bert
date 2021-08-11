@@ -5,13 +5,13 @@ max_seq_length=384
 doc_stride=128
 mode=train
 test_case_str=shinra_jp_bert_html
-data_dir=./data
-work_dir=${data_dir}/work/${mode}-${test_case_str}
+data_dir=../..
+work_dir=${data_dir}/shinra_to_squad_knowledge/${mode}-${label}
+
 
 html_data_dir=./data
 LR=2e-05
 prefix=simple
-
 
 GROUP=JP5
 
