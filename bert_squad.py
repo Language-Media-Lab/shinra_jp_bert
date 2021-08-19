@@ -1079,7 +1079,7 @@ class ShinraProcessor(SquadProcessor):
     dev_file = "dev-v1.1.json"
     def __init__(self, tokenizer, tokenizer_name='mecab'):
         self.tokenizer = tokenizer #MeCab.Tagger(f"-Owakati")
-        self.tagger_jumandic = MeCab.Tagger(f"-Owakati -d /usr/lib/mecab/dic/jumandic")
+        self.tagger_jumandic = MeCab.Tagger(f"-Owakati -d ../../lib/mecab/jumandic")
 
         # self.tagger_ipadic = MeCab.Tagger(f"-Owakati")
         self.tokenizer_name = tokenizer_name

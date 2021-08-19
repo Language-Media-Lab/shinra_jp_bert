@@ -21,6 +21,6 @@ for obj in "${array[@]}"; do
   fi
   target=($(basename $obj))
   echo $target
-  python shinra_to_squad.py --input ${datasets_dir}/${target}_dist.json --output ${work_dir}/squad_${target}.json --attribute_to_qa ${datasets_dir}/attribute_to_qa.json --html_dir ${html_dir}/${target} --html_tag
+  python3 shinra_to_squad.py --input ${datasets_dir}/${target}_dist.json --output ${work_dir}/squad_${target}.json --attribute_to_qa ${datasets_dir}/attribute_to_qa.json --html_dir ${html_dir}/${target} --html_tag
 
 done
