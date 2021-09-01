@@ -3,12 +3,13 @@ cat <<__EOT__
 group=$1
 __EOT__
 group=$1
+dir_name=$2
 
 mode=train
 label=shinra_jp_bert_html
 
-data_dir=../..
-work_dir=${data_dir}/shinra_to_squad_knowledge/${mode}-${label}
+data_dir=./data
+work_dir=${data_dir}/${dir_name}/${mode}-${label}
 mkdir -p ${work_dir}
 
 # unzip ${data_dir}/${group}.zip -d ${data_dir}
@@ -21,6 +22,6 @@ for obj in "${array[@]}"; do
   fi
   target=($(basename $obj))
   echo $target
-  python3 shinra_to_squad.py --input ${datasets_dir}/${target}_dist.json --output ${work_dir}/squad_${target}.json --attribute_to_qa ${datasets_dir}/attribute_to_qa.json --html_dir ${html_dir}/${target} --html_tag
+  python3 shinra_to_squad.py --category ${target}  --input ${datasets_dir}/${target}_dist.json --output ${work_dir}/squad_${target}.json --attribute_to_qa ${data_dir}/attribute_to_qa.json --html_dir ${html_dir}/${target} --html_tag
 
 done

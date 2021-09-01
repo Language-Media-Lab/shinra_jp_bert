@@ -1,0 +1,17 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+.vscode/
+
+data/
+output/
+output*
+runs/
+models/
+lib/
+shinra_jp_scorer/
+core
+errormemo.txt
+print_attribute.py

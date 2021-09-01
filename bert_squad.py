@@ -822,8 +822,8 @@ def process_shinra_examples(examples, labels, tokenizer, max_seq_length,
         spans = []
 
         truncated_query = tokenizer.encode(example.question_text, add_special_tokens=False, max_length=max_query_length)
-        sequence_added_tokens = tokenizer.max_len - tokenizer.max_len_single_sentence
-        sequence_pair_added_tokens = tokenizer.max_len - tokenizer.max_len_sentences_pair
+        sequence_added_tokens = tokenizer.model_max_length - tokenizer.max_len_single_sentence
+        sequence_pair_added_tokens = tokenizer.model_max_length - tokenizer.max_len_sentences_pair
         # len(all_doc_tokens)
         # len(all_doc_labels)
         span_doc_tokens = all_doc_tokens
@@ -877,7 +877,9 @@ def process_shinra_examples(examples, labels, tokenizer, max_seq_length,
 
             spans.append(encoded_dict)
 
-            if "overflowing_tokens" not in encoded_dict:
+            if "overflowing_tokens" not in encoded_dict  or (
+            "overflowing_tokens" in encoded_dict and len(encoded_dict["overflowing_tokens"]) == 0
+        ):
                 break
             span_doc_tokens = encoded_dict["overflowing_tokens"]
             span_doc_labels = span_doc_labels[doc_stride:]
@@ -1079,7 +1081,7 @@ class ShinraProcessor(SquadProcessor):
     dev_file = "dev-v1.1.json"
     def __init__(self, tokenizer, tokenizer_name='mecab'):
         self.tokenizer = tokenizer #MeCab.Tagger(f"-Owakati")
-        self.tagger_jumandic = MeCab.Tagger(f"-Owakati -d ../../lib/mecab/jumandic")
+        self.tagger_jumandic = MeCab.Tagger(f"-Owakati -d ./lib/mecab/jumandic")
 
         # self.tagger_ipadic = MeCab.Tagger(f"-Owakati")
         self.tokenizer_name = tokenizer_name
@@ -1130,7 +1132,8 @@ class ShinraProcessor(SquadProcessor):
                             para_end_line=para_end_line
                         )
                         examples.append(example)
-                    except:
+                    except Exception as e:
+                        print(e)
                         print('example = ShinraExample error!')
 
         return examples

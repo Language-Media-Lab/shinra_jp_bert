@@ -24,7 +24,6 @@ attribute_to_qa_LIST = {
 }
 
 
-
 def iter_files(path):
     """Walk through all files located under a root path."""
     if os.path.isfile(path):
@@ -49,13 +48,15 @@ def make_split_data(data_set, split_nums=[0.9]):
 
 
 def get_attribute_to_qa(path):
-'''
-属性名と[5W1H]の対応付けアノテーションを辞書型として取得
-'''
-    with open(path ,"r", encoding = "utf_8") as f:
-        return [json.loads(line) for line in f.readlines()]
+    '''
+    属性名と[5W1H]の対応付けアノテーションを辞書型として取得
+    '''
+    d = {}
+    with open(path, mode="r") as f:
+        d = json.load(f)
+    return d
 
-def process(args, dataset, attributes):
+def process(args, dataset, attributes, attribute_to_qa):
     data_size = len(dataset.keys())
     squad_data = []
 
@@ -64,7 +65,7 @@ def process(args, dataset, attributes):
             with Path(args.html_dir).joinpath(str(page_id)+'.html').open() as f:
                 html_content = f.read()
         except:
-            print('ERROR! No such file or directory:', filedir.joinpath(str(page_id)+'.html'))
+            print('ERROR! No such file or directory:', Path(args.html_dir).joinpath(str(page_id)+'.html'))
             continue
 
         try:
@@ -138,9 +139,18 @@ def process(args, dataset, attributes):
                                     print('WARNING! answer text is N/A', q, ans, paragraph[answer_start_position:answer_end_position], title, page_id)
                                     continue
                                 answers.append({"answer_start": answer_start_position, "answer_end": answer_end_position, "text": paragraph[answer_start_position:answer_end_position]})
-                        
                         ## create question 
-                        question = title + "の" + q + "は?"
+                        # question = q 
+                        # question = title + "の" + q + "は?"
+                        try:
+                            W5H1 = attribute_to_qa_LIST[attribute_to_qa[args.category][q]]
+                        except Exception as e:
+                            print(e)
+                            print("Error! : can not read 5W1H")
+                            print("category : {}     attribute : {} ".format(args.category, q))
+                            exit()
+                        
+                        question = title + "の" + q + "は" + W5H1 + "ですか?"
                         qas.append({"question": question, "id": q_id, "answers": answers})
 
                 for q in set(attributes) - set(attrs.keys()):
@@ -148,7 +158,16 @@ def process(args, dataset, attributes):
                         flags[q] = False
                     else:
                         ## create question 
-                        question = title + "の" + q + "は?"
+                        # question = q 
+                        # question = title + "の" + q + "は?"
+                        try:
+                            W5H1 = attribute_to_qa_LIST[attribute_to_qa[args.category][q]]
+                        except Exception as e:
+                            print(e)
+                            print("Error! : can not read 5W1H")
+                            exit()
+                        
+                        question = title + "の" + q + "は" + W5H1 + "ですか?"
                         qas.append({"question": question, "id": str(page_id) + '_' + str(len(paragraphs)) + '_' + str(attributes.index(q)), "answers": []})
                 paragraphs.append({"context": paragraph, "start_line":para_start_line_num, "end_line":para_end_line_num, "qas": qas})
                 paragraph = ''
@@ -170,7 +189,7 @@ def process(args, dataset, attributes):
     return squad_data
 
 
-def process_formal(args):
+def process_formal(args, attribute_to_qa):
     ENE = attr_list.get_ENE(args.category)
 
     attr_names = attr_list.get_attr_list(category=args.category)
@@ -214,7 +233,16 @@ def process_formal(args):
                     q_id = str(page_id) + '_' + str(len(paragraphs)) + '_' + str(q_idx)
                     answers = []
                     ## create question 
-                    question = title + "の" + q + "は?"
+                    # question = q 
+                    # question = title + "の" + q + "は?"
+                    try:
+                        W5H1 = attribute_to_qa_LIST[attribute_to_qa[args.category][q]]
+                    except Exception as e:
+                        print(e)
+                        print("Error! : can not read 5W1H")
+                        exit()
+                    
+                    question = title + "の" + q + "は" + W5H1 + "ですか?"
                     qas.append({"answers": answers, "question": question, "id": q_id})
 
                 paragraphs.append({"context": paragraph, "qas": qas, "start_line":para_start_line_num, "end_line":para_end_line_num})
@@ -229,6 +257,8 @@ def process_formal(args):
 
 def main():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--category', type=str, default=None,
+                    help='Shinra category')
     parser.add_argument('--input', type=str, default=None)
     parser.add_argument('--output', type=str, default=None)
     parser.add_argument('--attribute_to_qa', type=str, default=None)
@@ -250,7 +280,7 @@ def main():
     id_dict, html, plain, attributes = liner2dict(answer, ene)
     print('attributes:', attributes)
 
-    squad_data = process(args, id_dict, attributes)
+    squad_data = process(args, id_dict, attributes, attribute_to_qa)
 
     split_dataset = make_split_data(squad_data, split_nums=[args.split_dev, args.split_test])
 
