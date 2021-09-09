@@ -297,6 +297,8 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
                 break
+
+        # devデータセットで評価    
         if args.local_rank in [-1, 0]:
             logs = {}
             if args.local_rank == -1 and args.evaluate_during_training:  # Only evaluate when single GPU otherwise metrics may not average well
@@ -306,6 +308,7 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
                     for key, value in results.items():
                         eval_key = 'eval_{}_{}'.format(c, key)
                         logs[eval_key] = value
+                        if key == 'f1' : f1_scores.append(value)
                 # else:
                 #     results, predictions = evaluate(args, model, tokenizer, labels, pad_token_label_id, dev_dataset, dev_examples, dev_features, prefix='dev', output_shinra=False)
                 #

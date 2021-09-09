@@ -150,7 +150,8 @@ def process(args, dataset, attributes, attribute_to_qa):
                             print("category : {}     attribute : {} ".format(args.category, q))
                             exit()
                         
-                        question = title + "の" + q + "は" + W5H1 + "ですか?"
+                        #question = title + "の" + q + "は" + W5H1 + "ですか?"
+                        question = title + "の" + q 
                         qas.append({"question": question, "id": q_id, "answers": answers})
 
                 for q in set(attributes) - set(attrs.keys()):
@@ -167,7 +168,8 @@ def process(args, dataset, attributes, attribute_to_qa):
                             print("Error! : can not read 5W1H")
                             exit()
                         
-                        question = title + "の" + q + "は" + W5H1 + "ですか?"
+                        #question = title + "の" + q + "は" + W5H1 + "ですか?"
+                        question = title + "の" + q 
                         qas.append({"question": question, "id": str(page_id) + '_' + str(len(paragraphs)) + '_' + str(attributes.index(q)), "answers": []})
                 paragraphs.append({"context": paragraph, "start_line":para_start_line_num, "end_line":para_end_line_num, "qas": qas})
                 paragraph = ''
@@ -242,7 +244,8 @@ def process_formal(args, attribute_to_qa):
                         print("Error! : can not read 5W1H")
                         exit()
                     
-                    question = title + "の" + q + "は" + W5H1 + "ですか?"
+                    #question = title + "の" + q + "は" + W5H1 + "ですか?"
+                    question = title + "の" + q 
                     qas.append({"answers": answers, "question": question, "id": q_id})
 
                 paragraphs.append({"context": paragraph, "qas": qas, "start_line":para_start_line_num, "end_line":para_end_line_num})

@@ -7,7 +7,9 @@ mode=train
 label=shinra_jp_bert_html
 test_case_str=shinra_jp_bert_html
 data_dir=./data
+
 work_dir=${data_dir}/shinra_to_squad_ishii/${mode}-${label}
+output_dir=output_ishii
 
 
 
@@ -21,21 +23,21 @@ test_case_str=${test_case_str}_${GROUP}
 group_dir=${html_data_dir}/JP-5
 categories_comma="Compound,Person,Company,City,Airport"
 # カテゴリ横断の学習
-python3 bert_squad.py --group ${GROUP} --categories ${categories_comma} --not_with_negative --do_train --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --data_dir ${work_dir}
+python3 bert_squad.py --do_train --group ${GROUP} --categories ${categories_comma} --not_with_negative --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --data_dir ${work_dir} --output output_dir
 
-best_model_path=./output/${GROUP}_${test_case_str}_train_batch${batch_size}_epoch10_lr${LR}_seq${max_seq_length}
+best_model_path=./output_question/${GROUP}_${test_case_str}_train_batch${batch_size}_epoch10_lr${LR}_seq${max_seq_length}/epoch-9
 
 categories="Compound Person Company City Airport"
 for target in ${categories[@]}; do
     echo $target
     # ターゲットカテゴリの学習
-    python3 bert_squad.py --do_train --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --data_dir ${work_dir} --model_name_or_path ${best_model_path}
+    python3 bert_squad.py --do_train --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --data_dir ${work_dir} --model_name_or_path ${best_model_path} --output output_dir
     BEST_EPOCH=${?}
-    # BEST_EPOCH=9
+    #BEST_EPOCH=9
     # ターゲットタスクの予測
-    python3 bert_squad.py --do_predict --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --best_model_dir /epoch-${BEST_EPOCH} --data_dir ${work_dir}
+    python3 bert_squad.py --do_predict --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --best_model_dir /epoch-${BEST_EPOCH} --data_dir ${work_dir} --output output_dir 
     # スコアリング
-    bash _bert_squad_scorer.sh ${target} ${LR} ${BEST_EPOCH} ${group_dir} ${prefix} ${test_case_str}
+    bash _bert_squad_scorer.sh ${target} ${LR} ${BEST_EPOCH} ${group_dir} ${prefix} ${test_case_str} output_dir
 done
 
 
