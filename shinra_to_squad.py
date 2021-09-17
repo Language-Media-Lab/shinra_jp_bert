@@ -7,10 +7,12 @@ import argparse
 import json
 from pathlib import Path
 import html_util
-import sys
 import os, os.path
 # sys.path.append('../shinra_jp_scorer')
 from shinra_jp_scorer.scoring import liner2dict, get_annotation, get_ene
+
+import io,sys
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 FLAG_ATTRS = ['総称']
 

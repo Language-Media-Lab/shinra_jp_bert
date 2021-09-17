@@ -3,12 +3,14 @@
 #
 # This source code is licensed under the BSD license.
 
-import sys
+import io,sys
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 import numpy as np
 
 import os
 import argparse
 import logging
+from logging import FileHandler, Logger, getLogger, StreamHandler, Formatter
 import random
 import pathlib
 from attrdict import AttrDict
@@ -165,7 +167,8 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
     if args.fp16:
         try:
             from apex import amp
-        except ImportError:
+        except ImportError as e:
+            logger.exception('Raise Exception: %s', e)
             raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
 
         model, optimizer = amp.initialize(model, optimizer, opt_level=args.fp16_opt_level)
@@ -232,7 +235,20 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
     set_seed(args)  # Added here for reproductibility (even between python 2 and 3)
 
     f1_scores = []
+
+    # Training Start!
     for epoch_num in train_iterator:
+        ###後で消す=epoch-{0~9}のロード 
+        ###try:
+        ###    output_dir = os.path.join(args.output_dir, 'epoch-{}'.format(epoch_num))
+        ###    model_path = os.path.join(output_dir, 'pytorch_model.bin')
+        ###    config_path = os.path.join(output_dir, 'config.json')
+        ###    config = BertConfig.from_json_file(config_path)
+        ###    model = BertForShinraJP.from_pretrained(model_path, config=config)
+        ###    model.to(args.device)
+        ###except Exception as e:
+        ###    logger.exception('Raise Exception (model load): %s', e)
+        ###
         epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0])
         for step, batch in enumerate(epoch_iterator):
             model.train()
@@ -304,6 +320,7 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
             if args.local_rank == -1 and args.evaluate_during_training:  # Only evaluate when single GPU otherwise metrics may not average well
                 logger.info('epoch-{}: evaluate '.format(epoch_num)+'{}_{}_{}_{}'.format(args.output_dir, args.per_gpu_train_batch_size, args.num_train_epochs, args.learning_rate))
                 for c in args.categories:
+                    logger.info("***** evaluation  category : {}*****".format(c))
                     results, predictions = evaluate(args, model, tokenizer, labels, pad_token_label_id, dev_dataset_all[c], dev_examples[c], dev_features_all[c], prefix='dev', output_shinra=False)
                     for key, value in results.items():
                         eval_key = 'eval_{}_{}'.format(c, key)
@@ -317,6 +334,7 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
                 #         logs[eval_key] = value
                 #         if key == 'f1' : f1_scores.append(value)
 
+            # save model
             output_dir = os.path.join(args.output_dir, 'epoch-{}'.format(epoch_num))
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
@@ -328,6 +346,7 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
             for key, value in logs.items():
                 tb_writer.add_scalar(key, value, global_step)
             print(json.dumps({**logs, **{'step': global_step}}))
+            logger.info(json.dumps({**logs, **{'step': global_step}}))
         if args.max_steps > 0 and global_step > args.max_steps:
             train_iterator.close()
             break
@@ -364,6 +383,7 @@ def get_chunks(seq, begin="B", default=["O"]):
 
 from sklearn.metrics import f1_score
 from sklearn.metrics import confusion_matrix
+from sklearn.preprocessing import MultiLabelBinarizer
 def simple_accuracy(preds, labels):
     return (preds == labels).mean()
 def acc_and_f1(preds, labels):
@@ -465,11 +485,13 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
                 # preds_max_list[i].append(preds_max[i][j])
                 # preds_sum_list[i].append(preds_sum[i][j])
 
+    binary_out_labal_list = MultiLabelBinarizer().fit_transform(out_label_list)
+    binary_preds_list = MultiLabelBinarizer().fit_transform(preds_list)
     scores = {
         "loss": eval_loss,
         "precision": precision_score(out_label_list, preds_list),
         "recall": recall_score(out_label_list, preds_list),
-        "f1": f1_score(out_label_list, preds_list)
+        "f1": f1_score(binary_out_labal_list, binary_preds_list, average='micro')
     }
 
     logger.info("***** Eval results %s *****", prefix)
@@ -1138,6 +1160,8 @@ class ShinraProcessor(SquadProcessor):
                     except Exception as e:
                         print(e)
                         print('example = ShinraExample error!')
+                        logger.exception('Raise Exception: %s', e)
+                        logger.error('example = ShinraExample error!')
 
         return examples
 
@@ -1228,6 +1252,7 @@ class ShinraExample(object):
                 print(char_to_word_offset)
                 print(doc_tokens)
                 print(a)
+                logger.exception('Raise Exception: %s', e)
         # if start_position_character is not None and not is_impossible:
         #     self.start_position = char_to_word_offset[start_position_character]
         #     self.end_position = char_to_word_offset[end_position_character]
@@ -1294,11 +1319,15 @@ pathlib.Path(args.output_dir).mkdir(exist_ok=True)
 args.output_dir = args.output_dir+'/{}_{}_train_batch{}_epoch{}_lr{}_seq{}'.format(args.category, args.test_case_str, args.per_gpu_train_batch_size, args.num_train_epochs, args.learning_rate, args.max_seq_length)
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 # !mkdir $args.output_dir
 # !rm -r $args.output_dir
 log_file = args.output_dir+'/train.log'
 pathlib.Path(args.output_dir).mkdir(exist_ok=True)
+handler_format = Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 fh = logging.FileHandler(log_file)
+fh.setLevel(logging.DEBUG)
+fh.setFormatter(handler_format)
 logger.addHandler(fh)
 
 
@@ -1370,7 +1399,8 @@ if args.do_train:
         try:
             import apex
             apex.amp.register_half_function(torch, 'einsum')
-        except ImportError:
+        except ImportError as e:
+            logger.exception('Raise Exception: %s', e)
             raise ImportError("Please install apex from https://www.github.com/nvidia/apex to use fp16 training.")
     input_dir = args.data_dir if args.data_dir else "."
     mode = 'train'
@@ -1516,6 +1546,8 @@ if args.do_predict and args.local_rank in [-1, 0]:
                     logger.info("Saving features into cached file %s", cached_features_file)
                     torch.save({"features": features, "dataset": dataset, "examples":examples}, cached_features_file)
             if args.make_cache: continue
+            logger.info("***** predict start *****")
+            logger.info("best_model_dir : {}".format(args.best_model_dir))
             if args.best_model_dir:
                 model = model_class.from_pretrained(args.output_dir+args.best_model_dir)
                 model.to(args.device)

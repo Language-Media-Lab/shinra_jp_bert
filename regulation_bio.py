@@ -2,6 +2,8 @@
 # Copyright 2021, Nihon Unisys, Ltd.
 #
 # This source code is licensed under the BSD license.
+import io,sys
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 import time
 import argparse
