@@ -485,13 +485,13 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
                 # preds_max_list[i].append(preds_max[i][j])
                 # preds_sum_list[i].append(preds_sum[i][j])
 
-    binary_out_labal_list = MultiLabelBinarizer().fit_transform(out_label_list)
-    binary_preds_list = MultiLabelBinarizer().fit_transform(preds_list)
+    #binary_out_labal_list = MultiLabelBinarizer().fit_transform(out_label_list)
+    #binary_preds_list = MultiLabelBinarizer().fit_transform(preds_list)
     scores = {
         "loss": eval_loss,
         "precision": precision_score(out_label_list, preds_list),
         "recall": recall_score(out_label_list, preds_list),
-        "f1": f1_score(binary_out_labal_list, binary_preds_list, average='micro')
+        "f1": f1_score(out_labal_list, preds_list, average='micro')
     }
 
     logger.info("***** Eval results %s *****", prefix)

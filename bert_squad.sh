@@ -9,7 +9,7 @@ test_case_str=shinra_jp_bert_html
 data_dir=./data
 
 work_dir=${data_dir}/shinra_to_squad_ishii/${mode}-${label}
-output_dir=output_ishii_not_STILTs
+output_dir=output_ishii_Airport
 
 html_data_dir=./data
 LR=2e-05
@@ -19,19 +19,21 @@ GROUP=JP5
 
 test_case_str=${test_case_str}_${GROUP}
 group_dir=${html_data_dir}/JP-5
-categories_comma="Compound,Person,Company,City,Airport"
+#categories_comma="Compound,Person,Company,City,Airport"
 # カテゴリ横断の学習
 #python3 bert_squad.py --do_train --group ${GROUP} --categories ${categories_comma} --not_with_negative --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --data_dir ${work_dir} --output ${output_dir} --evaluate_during_training
 #
 #best_model_path=./output_question/${GROUP}_${test_case_str}_train_batch${batch_size}_epoch10_lr${LR}_seq${max_seq_length}/epoch-9
 
 
-categories="Compound Person Company City Airport"
-#categories="Compound Person City Airport"
+#categories="Compound Person Company City Airport"
+categories="Airport"
 for target in ${categories[@]}; do
     echo $target
     # ターゲットカテゴリの学習
+    ## STILTs有りの場合は以下のコード（--model_name_or_pathがある）
     #python3 bert_squad.py --do_train --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --data_dir ${work_dir} --model_name_or_path ${best_model_path} --output ${output_dir} --evaluate_during_training
+    ## STILTs無しの場合は以下のコード（--model_name_or_pathが無い）
     python3 bert_squad.py --do_train --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --data_dir ${work_dir} --output ${output_dir} --evaluate_during_training
     BEST_EPOCH=${?}
     BEST_EPOCH=9
