@@ -491,7 +491,7 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
         "loss": eval_loss,
         "precision": precision_score(out_label_list, preds_list),
         "recall": recall_score(out_label_list, preds_list),
-        "f1": f1_score(out_labal_list, preds_list, average='micro')
+        "f1": f1_score(out_label_list, preds_list, average='micro')
     }
 
     logger.info("***** Eval results %s *****", prefix)
