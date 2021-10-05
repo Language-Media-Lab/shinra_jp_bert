@@ -5,7 +5,7 @@ __pycache__/
 
 .vscode/
 
-data/
+data/*
 output/
 output*
 runs/
@@ -18,3 +18,9 @@ print_attribute.py
 todo.txt
 version.py
 todo.md
+README.md
+import.py
+metrics.py
+key.py
+out_label_list.txt
+preds_list.txt

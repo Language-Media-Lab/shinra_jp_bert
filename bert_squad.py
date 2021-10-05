@@ -6,7 +6,8 @@
 import io,sys
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 import numpy as np
-
+import pickle
+import datetime
 import os
 import argparse
 import logging
@@ -20,7 +21,7 @@ import mojimoji
 from collections import defaultdict
 from scipy.special import softmax
 
-from seqeval.metrics import precision_score, recall_score
+from seqeval.metrics import precision_score, recall_score, f1_score
 
 import torch
 from torch import nn
@@ -143,7 +144,11 @@ def set_seed(args):
 def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
     """ Train the model """
     if args.local_rank in [-1, 0]:
-        tb_writer = SummaryWriter()
+        d_today = str(datetime.date.today())
+        tensorboad_log_file_train = ('./runs/train_{}_{}_{}_batch{}_epoch{}_lr{}_seq{}'.format(d_today, args.category, args.output_dir,  args.per_gpu_train_batch_size, args.num_train_epochs, args.learning_rate, args.max_seq_length))
+        tensorboad_log_file_valid = ('./runs/valid_{}_{}_{}_batch{}_epoch{}_lr{}_seq{}'.format(d_today, args.category, args.output_dir,  args.per_gpu_train_batch_size, args.num_train_epochs, args.learning_rate, args.max_seq_length))
+        tb_writer_train = SummaryWriter(log_dir=tensorboad_log_file_train)
+        tb_writer_valid = SummaryWriter(log_dir=tensorboad_log_file_valid)
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
     train_sampler = RandomSampler(train_dataset) if args.local_rank == -1 else DistributedSampler(train_dataset)
@@ -296,8 +301,8 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
 
                 # Log metrics
                 if args.local_rank in [-1, 0] and args.logging_steps > 0 and global_step % args.logging_steps == 0:
-                    tb_writer.add_scalar('lr', scheduler.get_lr()[0], global_step)
-                    tb_writer.add_scalar('loss', (tr_loss - logging_loss)/args.logging_steps, global_step)
+                    tb_writer_train.add_scalar('lr', scheduler.get_lr()[0], global_step)
+                    tb_writer_train.add_scalar('loss', (tr_loss - logging_loss)/args.logging_steps, global_step)
                     logging_loss = tr_loss
 
                 # Save model checkpoint
@@ -344,7 +349,9 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
             logger.info("Saving model checkpoint to %s", output_dir)
 
             for key, value in logs.items():
-                tb_writer.add_scalar(key, value, global_step)
+                tb_writer_valid.add_scalar(key, value, global_step)
+                if 'loss' in key :
+                    tb_writer_valid.add_scalar('loss', value, global_step)
             print(json.dumps({**logs, **{'step': global_step}}))
             logger.info(json.dumps({**logs, **{'step': global_step}}))
         if args.max_steps > 0 and global_step > args.max_steps:
@@ -352,7 +359,8 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
             break
 
     if args.local_rank in [-1, 0]:
-        tb_writer.close()
+        tb_writer_train.close()
+        tb_writer_valid.close()
 
     return global_step, tr_loss / global_step, f1_scores
 
@@ -381,7 +389,7 @@ def get_chunks(seq, begin="B", default=["O"]):
 
     return chunks
 
-from sklearn.metrics import f1_score
+#from sklearn.metrics import f1_score
 from sklearn.metrics import confusion_matrix
 from sklearn.preprocessing import MultiLabelBinarizer
 def simple_accuracy(preds, labels):
@@ -487,11 +495,16 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
 
     #binary_out_labal_list = MultiLabelBinarizer().fit_transform(out_label_list)
     #binary_preds_list = MultiLabelBinarizer().fit_transform(preds_list)
+    #with open('./out_label_list.txt', mode='wb') as f:
+    #    pickle.dump(out_label_list,f)
+    #with open('./preds_list.txt', mode='wb') as f:
+    #    pickle.dump(preds_list,f)
+          
     scores = {
         "loss": eval_loss,
         "precision": precision_score(out_label_list, preds_list),
         "recall": recall_score(out_label_list, preds_list),
-        "f1": f1_score(out_label_list, preds_list, average='micro')
+        "f1": f1_score(out_label_list, preds_list)
     }
 
     logger.info("***** Eval results %s *****", prefix)
@@ -1369,6 +1382,7 @@ config_class, model_class = BertConfig, BertForShinraJP
 config = config_class.from_pretrained(args.base_model_name_or_path,
                                       num_labels=num_labels)
 if args.tokenizer_name == 'mecab_juman':
+    logger.info("Use mecab_juman")
     tokenizer = BertTokenizer.from_pretrained(args.base_model_name_or_path,
                                                 vocab_file=f'{args.base_model_name_or_path}/vocab.txt',
                                                 do_lower_case=args.do_lower_case)
