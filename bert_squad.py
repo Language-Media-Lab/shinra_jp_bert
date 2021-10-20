@@ -28,13 +28,10 @@ from torch import nn
 from torch.nn import CrossEntropyLoss
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler, TensorDataset)
 from torch.utils.data.distributed import DistributedSampler
-try:
-    from torch.utils.tensorboard import SummaryWriter
-except:
-    from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm, trange
 
-from transformers import BertConfig, BertTokenizer, BertJapaneseTokenizer
+from transformers import BertConfig, BertTokenizer #, BertJapaneseTokenizer
 from transformers import BertModel, BertPreTrainedModel
 
 from transformers.data.processors.squad import SquadProcessor, _is_whitespace
@@ -1266,6 +1263,11 @@ class ShinraExample(object):
                 print(doc_tokens)
                 print(a)
                 logger.exception('Raise Exception: %s', e)
+                logger.error('context_text : {}'.format(context_text))
+                logger.error('char_to_word_offset : {}'.format(char_to_word_offset))
+                logger.error('doc_tokens : {}'.format(doc_tokens))
+                logger.error('answer : {}'.format(a))
+                
         # if start_position_character is not None and not is_impossible:
         #     self.start_position = char_to_word_offset[start_position_character]
         #     self.end_position = char_to_word_offset[end_position_character]

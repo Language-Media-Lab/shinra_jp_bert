@@ -24,3 +24,4 @@ metrics.py
 key.py
 out_label_list.txt
 preds_list.txt
+stdout_bert_squad_sh.txt
