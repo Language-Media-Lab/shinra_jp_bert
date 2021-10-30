@@ -143,7 +143,7 @@ def process(args, dataset, attributes, attribute_to_qa):
                                 answers.append({"answer_start": answer_start_position, "answer_end": answer_end_position, "text": paragraph[answer_start_position:answer_end_position]})
                         ## create question 
                         # question = q 
-                        # question = title + "の" + q + "は?"
+                        #question = title + "の" + q + "は?"
                         try:
                             W5H1 = attribute_to_qa_LIST[attribute_to_qa[args.category][q]]
                         except Exception as e:
@@ -153,7 +153,8 @@ def process(args, dataset, attributes, attribute_to_qa):
                             exit()
                         
                         #question = title + "の" + q + "は" + W5H1 + "ですか?"
-                        question = title + "の" + q 
+                        question = q + "は" + W5H1 + "ですか?"
+                        #question = title + "の" + q 
                         qas.append({"question": question, "id": q_id, "answers": answers})
 
                 for q in set(attributes) - set(attrs.keys()):
@@ -162,7 +163,7 @@ def process(args, dataset, attributes, attribute_to_qa):
                     else:
                         ## create question 
                         # question = q 
-                        # question = title + "の" + q + "は?"
+                        question = title + "の" + q + "は?"
                         try:
                             W5H1 = attribute_to_qa_LIST[attribute_to_qa[args.category][q]]
                         except Exception as e:
@@ -171,7 +172,8 @@ def process(args, dataset, attributes, attribute_to_qa):
                             exit()
                         
                         #question = title + "の" + q + "は" + W5H1 + "ですか?"
-                        question = title + "の" + q 
+                        question = q + "は" + W5H1 + "ですか?"
+                        #question = title + "の" + q 
                         qas.append({"question": question, "id": str(page_id) + '_' + str(len(paragraphs)) + '_' + str(attributes.index(q)), "answers": []})
                 paragraphs.append({"context": paragraph, "start_line":para_start_line_num, "end_line":para_end_line_num, "qas": qas})
                 paragraph = ''
@@ -238,7 +240,7 @@ def process_formal(args, attribute_to_qa):
                     answers = []
                     ## create question 
                     # question = q 
-                    # question = title + "の" + q + "は?"
+                    #question = title + "の" + q + "は?"
                     try:
                         W5H1 = attribute_to_qa_LIST[attribute_to_qa[args.category][q]]
                     except Exception as e:
@@ -247,7 +249,8 @@ def process_formal(args, attribute_to_qa):
                         exit()
                     
                     #question = title + "の" + q + "は" + W5H1 + "ですか?"
-                    question = title + "の" + q 
+                    question = q + "は" + W5H1 + "ですか?"
+                    #question = title + "の" + q 
                     qas.append({"answers": answers, "question": question, "id": q_id})
 
                 paragraphs.append({"context": paragraph, "qas": qas, "start_line":para_start_line_num, "end_line":para_end_line_num})

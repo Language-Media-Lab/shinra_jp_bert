@@ -1122,12 +1122,14 @@ class ShinraProcessor(SquadProcessor):
         self.tokenizer_name = tokenizer_name
 
     def _create_examples(self, input_data, set_type):
+        ## get_train_examples関数で_create_examples()は使用される
         # set_type="dev"###
         is_training = set_type == "train"
         examples = []
         for entry in tqdm(input_data):
             # entry=input_data[0]####
             title = entry['title']
+            wikipediaID = entry['WikipediaID']
             for paragraph in entry["paragraphs"]:
                 # paragraph = entry["paragraphs"][0]###
                 context_text = paragraph["context"]
@@ -1157,6 +1159,8 @@ class ShinraProcessor(SquadProcessor):
                         context_tokens = self.tokenizer.word_tokenizer.tokenize(context_text)
                     try:
                         example = ShinraExample(
+                            title=title,
+                            wikipediaID=wikipediaID,
                             qas_id=qas_id,
                             question_text=question_text,
                             question_tokens=question_tokens,
@@ -1178,6 +1182,8 @@ class ShinraProcessor(SquadProcessor):
 import unicodedata
 class ShinraExample(object):
     def __init__(self,
+                 title,
+                 wikipediaID,
                  qas_id,
                  question_text,
                  question_tokens,
@@ -1224,12 +1230,23 @@ class ShinraExample(object):
                         pass
                     else:
                         print('error1', token_i, token_i_j, token, c)
+                        logger.error("ERROR1 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
+                        logger.error("title: {}".format(title))
+                        logger.error("wikipediaID: {}".format(wikipediaID))
+                        logger.error('context_text : {}'.format(context_text))
+                        logger.error("ERROR1 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
                         raise ValueError("ERROR1 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
                         # break
 
                 else:
                     #raise ValueError("ERROR2")
                     #print('error2', token_i, token_i_j, token, c)
+                    logger.error("ERROR2 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
+                    logger.error("title: {}".format(title))
+                    logger.error("wikipediaID: {}".format(wikipediaID))
+                    logger.error('context_text : {}'.format(context_text))
+                    logger.error('doc_tokens : {}'.format(doc_tokens))
+                    logger.error("ERROR2 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
                     raise ValueError("ERROR2 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
                     # break
 
@@ -1258,11 +1275,16 @@ class ShinraExample(object):
             except Exception as e:
                 print("context_text[a['answer_start']:a['answer_end']]", context_text[a['answer_start']:a['answer_end']])
                 print("error: {0}".format(e))
-                print(context_text)
-                print(char_to_word_offset)
-                print(doc_tokens)
-                print(a)
+                print("title: {}".format(title))
+                print("wikipediaID: {}".format(wikipediaID))
+                print('context_text : {}'.format(context_text))
+                print('char_to_word_offset : {}'.format(char_to_word_offset))
+                print('doc_tokens : {}'.format(doc_tokens))
+                print('answer : {}'.format(a))
                 logger.exception('Raise Exception: %s', e)
+                logger.error("title: {}".format(title))
+                logger.error("wikipediaID: {}".format(wikipediaID))
+                logger.error("context_text[a['answer_start']:a['answer_end']]", context_text[a['answer_start']:a['answer_end']])
                 logger.error('context_text : {}'.format(context_text))
                 logger.error('char_to_word_offset : {}'.format(char_to_word_offset))
                 logger.error('doc_tokens : {}'.format(doc_tokens))
