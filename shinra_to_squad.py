@@ -58,7 +58,7 @@ def get_attribute_to_qa(path):
         d = json.load(f)
     return d
 
-def process(args, dataset, attributes, attribute_to_qa):
+def process(args, dataset, attributes, attribute_to_qa, question_type):
     data_size = len(dataset.keys())
     squad_data = []
 
@@ -141,9 +141,8 @@ def process(args, dataset, attributes, attribute_to_qa):
                                     print('WARNING! answer text is N/A', q, ans, paragraph[answer_start_position:answer_end_position], title, page_id)
                                     continue
                                 answers.append({"answer_start": answer_start_position, "answer_end": answer_end_position, "text": paragraph[answer_start_position:answer_end_position]})
-                        ## create question 
-                        # question = q 
-                        #question = title + "の" + q + "は?"
+                        
+                        
                         try:
                             W5H1 = attribute_to_qa_LIST[attribute_to_qa[args.category][q]]
                         except Exception as e:
@@ -151,19 +150,36 @@ def process(args, dataset, attributes, attribute_to_qa):
                             print("Error! : can not read 5W1H")
                             print("category : {}     attribute : {} ".format(args.category, q))
                             exit()
-                        
-                        #question = title + "の" + q + "は" + W5H1 + "ですか?"
-                        question = q + "は" + W5H1 + "ですか?"
-                        #question = title + "の" + q 
-                        qas.append({"question": question, "id": q_id, "answers": answers})
+                        ## create question 
+                        try:
+                            if set(["attribute"]) == set(question_type) :
+                                question = q 
+                            elif set(["title", "attribute"]) == set(question_type) :
+                                question = title + "の" + q 
+                            elif set(["attribute", "question"]) == set(question_type) :
+                                question = q + "は?"
+                            elif set(["title", "attribute", "question"]) == set(question_type) :
+                                question = title + "の" + q + "は?"
+                            elif set(["attribute","5W1H", "question" ]) == set(question_type) :
+                                question = q + "は" + W5H1 + "ですか?"
+                            elif set(["title", "attribute", "5W1H", "question"]) == set(question_type) :
+                                question = title + "の" + q + "は" + W5H1 + "ですか?"
+                            else:
+                                raise Exception
+                        except Exception as e:
+                            print(e)
+                            print("Error! : can not matching question_type ")
+                            print("question_type : {}".format(question_type))
+                            exit()
+
+                        attribute = q 
+                        qas.append({"question": question, "id": q_id, "attribute":attribute, "answers": answers})
 
                 for q in set(attributes) - set(attrs.keys()):
                     if q in FLAG_ATTRS:
                         flags[q] = False
                     else:
-                        ## create question 
-                        # question = q 
-                        question = title + "の" + q + "は?"
+    
                         try:
                             W5H1 = attribute_to_qa_LIST[attribute_to_qa[args.category][q]]
                         except Exception as e:
@@ -171,10 +187,30 @@ def process(args, dataset, attributes, attribute_to_qa):
                             print("Error! : can not read 5W1H")
                             exit()
                         
-                        #question = title + "の" + q + "は" + W5H1 + "ですか?"
-                        question = q + "は" + W5H1 + "ですか?"
-                        #question = title + "の" + q 
-                        qas.append({"question": question, "id": str(page_id) + '_' + str(len(paragraphs)) + '_' + str(attributes.index(q)), "answers": []})
+                        ## create question 
+                        try:
+                            if set(["attribute"]) == set(question_type) :
+                                question = q 
+                            elif set(["title", "attribute"]) == set(question_type) :
+                                question = title + "の" + q 
+                            elif set(["attribute", "question"]) == set(question_type) :
+                                question = q + "は?"
+                            elif set(["title", "attribute", "question"]) == set(question_type) :
+                                question = title + "の" + q + "は?"
+                            elif set(["attribute","5W1H", "question" ]) == set(question_type) :
+                                question = q + "は" + W5H1 + "ですか?"
+                            elif set(["title", "attribute", "5W1H", "question"]) == set(question_type) :
+                                question = title + "の" + q + "は" + W5H1 + "ですか?"
+                            else:
+                                raise Exception
+                        except Exception as e:
+                            print(e)
+                            print("Error! : can not matching question_type ")
+                            print("question_type : {}".format(question_type))
+                            exit()
+
+                        attribute = q
+                        qas.append({"question": question, "id": str(page_id) + '_' + str(len(paragraphs)) + '_' + str(attributes.index(q)), "attribute":attribute, "answers": []})
                 paragraphs.append({"context": paragraph, "start_line":para_start_line_num, "end_line":para_end_line_num, "qas": qas})
                 paragraph = ''
 
@@ -195,7 +231,7 @@ def process(args, dataset, attributes, attribute_to_qa):
     return squad_data
 
 
-def process_formal(args, attribute_to_qa):
+def process_formal(args, attribute_to_qa, question_type):
     ENE = attr_list.get_ENE(args.category)
 
     attr_names = attr_list.get_attr_list(category=args.category)
@@ -238,9 +274,7 @@ def process_formal(args, attribute_to_qa):
                     q_idx += 1
                     q_id = str(page_id) + '_' + str(len(paragraphs)) + '_' + str(q_idx)
                     answers = []
-                    ## create question 
-                    # question = q 
-                    #question = title + "の" + q + "は?"
+                    
                     try:
                         W5H1 = attribute_to_qa_LIST[attribute_to_qa[args.category][q]]
                     except Exception as e:
@@ -248,10 +282,30 @@ def process_formal(args, attribute_to_qa):
                         print("Error! : can not read 5W1H")
                         exit()
                     
-                    #question = title + "の" + q + "は" + W5H1 + "ですか?"
-                    question = q + "は" + W5H1 + "ですか?"
-                    #question = title + "の" + q 
-                    qas.append({"answers": answers, "question": question, "id": q_id})
+                    ## create question 
+                    try:
+                        if set(["attribute"]) == set(question_type) :
+                            question = q 
+                        elif set(["title", "attribute"]) == set(question_type) :
+                            question = title + "の" + q 
+                        elif set(["attribute", "question"]) == set(question_type) :
+                            question = q + "は?"
+                        elif set(["title", "attribute", "question"]) == set(question_type) :
+                            question = title + "の" + q + "は?"
+                        elif set(["attribute","5W1H", "question" ]) == set(question_type) :
+                            question = q + "は" + W5H1 + "ですか?"
+                        elif set(["title", "attribute", "5W1H", "question"]) == set(question_type) :
+                            question = title + "の" + q + "は" + W5H1 + "ですか?"
+                        else:
+                            raise Exception
+                    except Exception as e:
+                        print(e)
+                        print("Error! : can not matching question_type ")
+                        print("question_type : {}".format(question_type))
+                        exit()
+                    
+                    attribute = q
+                    qas.append({"answers": answers, "question": question, "attribute":attribute ,"id": q_id})
 
                 paragraphs.append({"context": paragraph, "qas": qas, "start_line":para_start_line_num, "end_line":para_end_line_num})
                 paragraph = ''
@@ -269,6 +323,12 @@ def main():
                     help='Shinra category')
     parser.add_argument('--input', type=str, default=None)
     parser.add_argument('--output', type=str, default=None)
+    parser.add_argument('--question_type', type=str, default="attribute",
+                        help='setting question(=query) type.\n \
+                            You can use any combination of the following question types.\n\
+                            question_type= attribute, title, question, 5W1H\
+                            For example, question_type="attribute title question" , \
+                            then　question = "シャネルの本拠地は？"')
     parser.add_argument('--attribute_to_qa', type=str, default=None)
     parser.add_argument('--split_dev', type=float, default=0.85,
                         help='start point of dev data')
@@ -285,10 +345,11 @@ def main():
     answer = get_annotation(args.input)
     attribute_to_qa = get_attribute_to_qa(args.attribute_to_qa) #属性名と5W1Hの対応付けデータ
     ene = get_ene(answer)
+    question_type=args.question_type.split(',')
     id_dict, html, plain, attributes = liner2dict(answer, ene)
     print('attributes:', attributes)
 
-    squad_data = process(args, id_dict, attributes, attribute_to_qa)
+    squad_data = process(args, id_dict, attributes, attribute_to_qa, question_type)
 
     split_dataset = make_split_data(squad_data, split_nums=[args.split_dev, args.split_test])
 

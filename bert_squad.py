@@ -4,6 +4,7 @@
 # This source code is licensed under the BSD license.
 
 import io,sys
+import attrdict
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 import numpy as np
 import pickle
@@ -563,7 +564,7 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
             page_id, q_id = qas_id_split
             para_id = 0
 
-        attr = examples[f.example_index].question_text
+        attr = examples[f.example_index].attribute
         attributes.add(attr)
         if not attr in chunks_page[f.example_index]: chunks_page[f.example_index][attr] = set()
         if not attr in chunks_gold_page[f.example_index]: chunks_gold_page[f.example_index][attr] = set()
@@ -597,7 +598,7 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
             entry['span_start'] = f.span_start
 
             current_q_id = q_id
-            entry['attribute'] = examples[f.example_index].question_text
+            entry['attribute'] = examples[f.example_index].attribute
 
 
             para_start_offset = word_to_char_offset[f.token_to_orig_map[c_s]]
@@ -1139,6 +1140,7 @@ class ShinraProcessor(SquadProcessor):
                     # qa = paragraph["qas"][0]###
                     qas_id = qa["id"]
                     question_text = qa["question"]
+                    attribute = qa["attribute"]
                     start_position_character = None
                     end_position_character = None
                     answer_text = None
@@ -1146,15 +1148,18 @@ class ShinraProcessor(SquadProcessor):
 
                     context_text = unicodedata.normalize('NFKC', context_text)
                     question_text = unicodedata.normalize('NFKC', question_text)
+                    attribute = unicodedata.normalize('NFKC', attribute)
 
                     if self.tokenizer_name == 'mecab_juman':
                         question_text = mojimoji.han_to_zen(question_text).replace("\u3000", " ").rstrip("\n")
                         question_tokens = self.tagger_jumandic.parse(question_text).rstrip("\n").split()
+                        attribute = mojimoji.han_to_zen(attribute).replace("\u3000", " ").rstrip("\n")
                         context_text = mojimoji.han_to_zen(context_text).replace("\u3000", " ").rstrip("\n")
                         context_tokens = self.tagger_jumandic.parse(context_text).rstrip("\n").split()
                     else:
                         context_text = unicodedata.normalize('NFKC', context_text)
                         question_text = unicodedata.normalize('NFKC', question_text)
+                        attribute = unicodedata.normalize('NFKC', attribute)
                         question_tokens = self.tokenizer.word_tokenizer.tokenize(question_text)
                         context_tokens = self.tokenizer.word_tokenizer.tokenize(context_text)
                     try:
@@ -1164,6 +1169,7 @@ class ShinraProcessor(SquadProcessor):
                             qas_id=qas_id,
                             question_text=question_text,
                             question_tokens=question_tokens,
+                            attribute=attribute,
                             context_text=context_text,
                             context_tokens=context_tokens,
                             answers=answers,
@@ -1187,6 +1193,7 @@ class ShinraExample(object):
                  qas_id,
                  question_text,
                  question_tokens,
+                 attribute,
                  context_text,
                  context_tokens,
                  answers=[],
@@ -1194,6 +1201,7 @@ class ShinraExample(object):
                  para_end_line=None):#,
         self.qas_id = qas_id
         self.question_text = question_text
+        self.attribute = attribute
         self.context_text = context_text
         self.answers = answers
         self.para_start_line = para_start_line

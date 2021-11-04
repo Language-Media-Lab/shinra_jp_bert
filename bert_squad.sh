@@ -34,8 +34,9 @@ bash _make_stdout_files.sh ${output_dir}
 # カテゴリ横断しない場合
 best_model_path=./models/NICT_BERT-base_JapaneseWikipedia_32K_BPE
 
-categories="Person Company City Airport Compound"
+#categories="Person Company City Airport Compound"
 #categories="Person Company City"
+categories="Person City"
 for target in ${categories[@]}; do
     echo $target
     # ターゲットカテゴリの学習
@@ -43,13 +44,12 @@ for target in ${categories[@]}; do
     #python3 bert_squad.py --do_train --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --data_dir ${work_dir} --model_name_or_path ${best_model_path} --output ${output_dir} --evaluate_during_training
     ## STILTs無しの場合は以下のコード（--model_name_or_pathが無い）
     BEST_EPOCH=$(python3 bert_squad.py --do_train --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --data_dir ${work_dir} --output ${output_dir} --evaluate_during_training >> ${output_dir}/stdout_train.txt)
-    #BEST_EPOCH=8
+    #BEST_EPOCH=9
     # ターゲットタスクの予測
     python3 bert_squad.py --do_predict --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --best_model_dir /epoch-${BEST_EPOCH} --data_dir ${work_dir} --output ${output_dir} >> ${output_dir}/stdout_pred.txt
     # スコアリング
     bash _bert_squad_scorer.sh ${target} ${LR} ${BEST_EPOCH} ${group_dir} ${prefix} ${test_case_str} ${output_dir} >> ${output_dir}/stdout_score.txt
 done
-
 
 ##GROUP=Organization
 ##test_case_str=${test_case_str}_${GROUP}

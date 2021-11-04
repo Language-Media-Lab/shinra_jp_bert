@@ -7,6 +7,7 @@ dir_name=$2
 
 mode=train
 label=shinra_jp_bert_html
+question_type="attribute,title,question,5W1H"
 
 data_dir=./data
 work_dir=${data_dir}/${dir_name}/${mode}-${label}
@@ -22,6 +23,6 @@ for obj in "${array[@]}"; do
   fi
   target=($(basename $obj))
   echo $target
-  python3 shinra_to_squad.py --category ${target}  --input ${datasets_dir}/${target}_dist.json --output ${work_dir}/squad_${target}.json --attribute_to_qa ${data_dir}/attribute_to_qa.json --html_dir ${html_dir}/${target} --html_tag
+  python3 shinra_to_squad.py --category ${target}  --question_type ${question_type} --input ${datasets_dir}/${target}_dist.json --output ${work_dir}/squad_${target}.json --attribute_to_qa ${data_dir}/attribute_to_qa.json --html_dir ${html_dir}/${target} --html_tag
 
 done
