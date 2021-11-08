@@ -99,6 +99,11 @@ def process(args, dataset, attributes, attribute_to_qa, question_type):
             if len(line) == 0 or (len(line) > 0 and line[-1] != '\n'):
                 paragraph += '\n'
 
+            #空テーブルContextを除外(突貫工事)
+            if paragraph == "<table>                                             \n<tr> \n\n</td> \n\n</td></tr></table> \n":
+                paragraph = ''
+                continue
+
             if len(paragraph) > 0 and len(line) > 0 and line[-1] == '\n':
                 para_end_line_num = line_num
                 qas = []

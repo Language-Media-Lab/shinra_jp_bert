@@ -7,7 +7,8 @@ dir_name=$2
 
 mode=train
 label=shinra_jp_bert_html
-question_type="attribute,title,question,5W1H"
+#question_type="attribute,title,question,5W1H"
+question_type="attribute"
 
 data_dir=./data
 work_dir=${data_dir}/${dir_name}/${mode}-${label}

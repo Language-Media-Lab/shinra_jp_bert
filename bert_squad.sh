@@ -10,8 +10,8 @@ label=shinra_jp_bert_html
 test_case_str=shinra_jp_bert_html
 data_dir=./data
 
-work_dir=${data_dir}/2019JP_q_5W1H/${mode}-${label}
-output_dir=output_2019JP_q_5W1H_baseline
+work_dir=${data_dir}/2019JP_fixerror/${mode}-${label}
+output_dir=output_2019JP_ishii_baseline_City_fixerror
 
 html_data_dir=./data
 LR=2e-05
@@ -36,7 +36,7 @@ best_model_path=./models/NICT_BERT-base_JapaneseWikipedia_32K_BPE
 
 #categories="Person Company City Airport Compound"
 #categories="Person Company City"
-categories="Person City"
+categories="City"
 for target in ${categories[@]}; do
     echo $target
     # ターゲットカテゴリの学習
