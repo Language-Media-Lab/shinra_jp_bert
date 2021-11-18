@@ -87,9 +87,9 @@ parser.add_argument('--cache_test_case_str', type=str, default=None,
                     help='test case str')
 parser.add_argument("--predict_category", default=None, type=str,
                     help="comma separated predict category")
-parser.add_argument("--model_name_or_path", default='./models/NICT_BERT-base_JapaneseWikipedia_32K_BPE', type=str,
+parser.add_argument("--model_name_or_path", default='../models/NICT_BERT-base_JapaneseWikipedia_32K_BPE', type=str,
                     help="")
-parser.add_argument("--base_model_name_or_path", default='./models/NICT_BERT-base_JapaneseWikipedia_32K_BPE', type=str,
+parser.add_argument("--base_model_name_or_path", default='../models/NICT_BERT-base_JapaneseWikipedia_32K_BPE', type=str,
                     help="")
 parser.add_argument('--result_file_prefix', type=str, default='',
                     help='result file')
@@ -1139,6 +1139,9 @@ class ShinraProcessor(SquadProcessor):
             # entry=input_data[0]####
             title = entry['title']
             wikipediaID = entry['WikipediaID']
+            if wikipediaID in ['108953', '84749', '80302', '158915'] :
+                logger.info("Juman辞書のバグのため，IPA辞書使用")
+                logger.info('wikipediaID : {}'.format(wikipediaID))
             for paragraph in entry["paragraphs"]:
                 # paragraph = entry["paragraphs"][0]###
                 context_text = paragraph["context"]
@@ -1158,19 +1161,29 @@ class ShinraProcessor(SquadProcessor):
                     question_text = unicodedata.normalize('NFKC', question_text)
                     attribute = unicodedata.normalize('NFKC', attribute)
 
-                    if self.tokenizer_name == 'mecab_juman':
-                        question_text = mojimoji.han_to_zen(question_text).replace("\u3000", " ").rstrip("\n")
-                        question_tokens = self.tagger_jumandic.parse(question_text).rstrip("\n").split()
-                        attribute = mojimoji.han_to_zen(attribute).replace("\u3000", " ").rstrip("\n")
-                        context_text = mojimoji.han_to_zen(context_text).replace("\u3000", " ").rstrip("\n")
-                        context_tokens = self.tagger_jumandic.parse(context_text).rstrip("\n").split()
-
-                    elif self.tokenizer_name == 'mecab_ipadic':
+                     # 突貫工事 Jumanバグがある記事3件のみIPA辞書使用
+                    if  (wikipediaID in ['108953', '84749', '80302', '158915']) or (self.tokenizer_name == 'mecab_ipadic'):
                         question_text = mojimoji.han_to_zen(question_text).replace("\u3000", " ").rstrip("\n")
                         question_tokens = self.tagger_ipadic.parse(question_text).rstrip("\n").split()
                         attribute = mojimoji.han_to_zen(attribute).replace("\u3000", " ").rstrip("\n")
                         context_text = mojimoji.han_to_zen(context_text).replace("\u3000", " ").rstrip("\n")
                         context_tokens = self.tagger_ipadic.parse(context_text).rstrip("\n").split()
+
+                    elif self.tokenizer_name == 'mecab_juman':
+                        question_text = mojimoji.han_to_zen(question_text).replace("\u3000", " ").rstrip("\n")
+                        question_tokens = self.tagger_jumandic.parse(question_text).rstrip("\n").split()
+                        attribute = mojimoji.han_to_zen(attribute).replace("\u3000", " ").rstrip("\n")
+                        context_text = mojimoji.han_to_zen(context_text).replace("\u3000", " ").rstrip("\n")
+                        context_tokens = self.tagger_jumandic.parse(context_text).rstrip("\n").split()
+                        # 突貫工事 Jumanバグがある記事3件のみIPA辞書使用
+                        #if wikipediaID in ['108953', '84749', '80302']:
+                        #    #logger.info("mecab ipa辞書使用")
+                        #    question_tokens = self.tagger_ipadic.parse(question_text).rstrip("\n").split()
+                        #    context_tokens = self.tagger_ipadic.parse(context_text).rstrip("\n").split()
+                        #for context_token in context_tokens:
+                        #    if 'Cs' in [unicodedata.category(c) for c in context_token]:
+                        #        context_tokens = self.tagger_ipadic.parse(context_text).rstrip("\n").split()
+                        #        logger.info("context_text -> context_tokens(=ipadic.parse) : {}".format(context_tokens))
 
                     else:
                         context_text = unicodedata.normalize('NFKC', context_text)
@@ -1242,6 +1255,15 @@ class ShinraExample(object):
                     # char_to_word_offset.append(token_i)
                     char_to_word_offset.append(-1)
             else:
+                #if 'Cs' in [unicodedata.category(token[token_i_j])]:
+                #    token[token_i_j]=c
+                #    logger.info("Use mecab_ipadic")
+                #    doc_tokens = self.tagger_ipadic.parse(context_text).rstrip("\n").split()
+
+                #if 'Cs' in [unicodedata.category(t) for t in token[token_i_j]]:
+                #    logger.info("Use mecab_ipadic")
+                #    token[token_i_j] = self.tagger_ipadic.parse(c).rstrip("\n").split()
+
                 if token[token_i_j] == c:
                     char_to_word_offset.append(token_i)
                     if token_i_j+1 < len(token):
@@ -1258,47 +1280,10 @@ class ShinraExample(object):
                         logger.error("title: {}".format(title))
                         logger.error("wikipediaID: {}".format(wikipediaID))
                         logger.error('context_text : {}'.format(context_text))
-                        logger.error("ERROR1 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
                         raise ValueError("ERROR1 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
                         # break
 
                 else:
-                    try:
-                        #raise ValueError("ERROR2")
-                        #print('error2', token_i, token_i_j, token, c)
-                        logger.error("ERROR2 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
-                        logger.error("title: {}".format(title))
-                        logger.error("wikipediaID: {}".format(wikipediaID))
-                        logger.error('context_text : {}'.format(context_text))
-                        logger.error('doc_tokens : {}'.format(doc_tokens))
-                        logger.error("ERROR2 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
-                        raise ValueError("ERROR2 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
-                    except UnicodeEncodeError as e:
-                        logger.error('Raise Exception: %s', e)
-                        logger.info("Use mecab_ipadic")
-                        self.tagger_ipadic = MeCab.Tagger(f"-Owakati -d ./lib/mecab/ipadic")
-                        context_tokens = self.tagger_ipadic.parse(context_text).rstrip("\n").split()
-                        doc_tokens = context_tokens
-                        token = doc_tokens[token_i]
-                        if token[token_i_j] == c:
-                            char_to_word_offset.append(token_i)
-                        if token_i_j+1 < len(token):
-                            token_i_j += 1
-                        elif token_i+1 < len(doc_tokens):
-                            token_i +=1
-                            token = doc_tokens[token_i]
-                            token_i_j = 0
-                        elif token_i+1==len(doc_tokens):
-                            pass
-                        else:
-                            print('error1', token_i, token_i_j, token, c)
-                            logger.error("ERROR1 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
-                            logger.error("title: {}".format(title))
-                            logger.error("wikipediaID: {}".format(wikipediaID))
-                            logger.error('context_text : {}'.format(context_text))
-                            logger.error("ERROR1 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
-                            raise ValueError("ERROR1 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
-                            
                     #raise ValueError("ERROR2")
                     #print('error2', token_i, token_i_j, token, c)
                     logger.error("ERROR2 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
@@ -1306,9 +1291,8 @@ class ShinraExample(object):
                     logger.error("wikipediaID: {}".format(wikipediaID))
                     logger.error('context_text : {}'.format(context_text))
                     logger.error('doc_tokens : {}'.format(doc_tokens))
-                    logger.error("ERROR2 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
                     raise ValueError("ERROR2 ShinraExample token_i={},token_i_j={},token={},c={}".format(token_i, token_i_j, token, c))
-                            
+                    # break
 
         # char_to_word_offset[-1]
         # context_text[-1]
@@ -1354,6 +1338,7 @@ class ShinraExample(object):
         #     self.start_position = char_to_word_offset[start_position_character]
         #     self.end_position = char_to_word_offset[end_position_character]
             # self.end_position = char_to_word_offset[start_position_character + len(answer_text) - 1]
+
 class ShinraFeatures(object):
     def __init__(self,
                  input_ids,

@@ -4,7 +4,8 @@ __pycache__/
 *$py.class
 
 .vscode/
-
+shinra_jp_scorer/
+shinra_jp_scorer/*
 data/*
 output/
 output*
@@ -30,3 +31,7 @@ error_saigen_unicode.py
 error_saigen_unicode_stdout.txt
 teratail.py
 unicode.py
+print_epoch.sh
+sleep.py
+teshget_epoch.py
+test_liner_to_dict.py

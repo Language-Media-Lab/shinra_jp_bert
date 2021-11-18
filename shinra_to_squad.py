@@ -11,6 +11,8 @@ import os, os.path
 # sys.path.append('../shinra_jp_scorer')
 from shinra_jp_scorer.scoring import liner2dict, get_annotation, get_ene
 
+import random
+
 import io,sys
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
@@ -58,10 +60,46 @@ def get_attribute_to_qa(path):
         d = json.load(f)
     return d
 
-def process(args, dataset, attributes, attribute_to_qa, question_type):
-    data_size = len(dataset.keys())
-    squad_data = []
+def make_example(dataset, target_title, target_attr, original_question):
+    # attrubuteが同じものをdatasetから抽出
+    ex_dict = {key:value for key, value in dataset.items() if  target_attr in list(value.keys()) }
+    
+    # 元々のQuestionからハッシュ値を生成 → これをシード値として使用する．
+    random.seed(original_question)
+    sample_example = dict(random.sample(ex_dict.items(), 1))
+    ex_title = list(sample_example.values())[0][target_attr][0]['title'] 
+    ex_attr = list(sample_example.values())[0][target_attr][0]['attribute']
+    ex_ans = list(sample_example.values())[0][target_attr][0]['text_offset']['text']
+    h = hash(original_question+'1')
+    while target_title == ex_title and target_attr == ex_attr:
+        print('追加用Exampleと元々のQuestionが同じでした．再度サンプリングします')
+        h += 1
+        random.seed(h)
+        sample_example = dict(random.sample(ex_dict.items(), 1))
+        ex_title = list(sample_example.values())[0][target_attr][0]['title'] 
+        ex_attr = list(sample_example.values())[0][target_attr][0]['attribute']
+        ex_ans = list(sample_example.values())[0][target_attr][0]['text_offset']['text']
+    example =  ex_title + "の" + ex_attr + "は" + ex_ans + "です。"
+    return str(example)
 
+def process(args, dataset, attributes, attribute_to_qa, question_type, train_num=None, dev_num=None, test_num=None):
+    ## example追加用Dict
+    if "example" in question_type :
+        example_dataset = dataset
+    
+    ## (train_num + dev_num + test_num)の数だけ dataset からランダムサンプルする
+    if (train_num is not None) and (dev_num is not None) and (test_num is not None):
+        if (train_num + dev_num + test_num) > len(dataset.keys()):
+            raise ValueError("ERROR : The number of samples exceeds the data set size. len(dataset)={}, The number of samples={}".format(dataset, (train_num + dev_num + test_num)))
+        data_size = train_num + dev_num + test_num
+        id_list = list(dataset.keys())
+        id_list = random.sample(id_list,data_size)
+        dataset = {key:value for key, value in dataset.items() if (key) in id_list}
+    else:
+        data_size = len(dataset.keys())
+    
+    squad_data = []
+    
     for page_id, attrs in dataset.items():
         try:
             with Path(args.html_dir).joinpath(str(page_id)+'.html').open() as f:
@@ -169,6 +207,10 @@ def process(args, dataset, attributes, attribute_to_qa, question_type):
                                 question = q + "は" + W5H1 + "ですか?"
                             elif set(["title", "attribute", "5W1H", "question"]) == set(question_type) :
                                 question = title + "の" + q + "は" + W5H1 + "ですか?"
+                            elif set(["title", "attribute", "5W1H", "question", "example"]) == set(question_type) :
+                                original_question = title + "の" + q + "は" + W5H1 + "ですか?"
+                                example = make_example(example_dataset, title, q, original_question)
+                                question = example + title + "の" + q + "は" + W5H1 + "ですか?"
                             else:
                                 raise Exception
                         except Exception as e:
@@ -206,6 +248,10 @@ def process(args, dataset, attributes, attribute_to_qa, question_type):
                                 question = q + "は" + W5H1 + "ですか?"
                             elif set(["title", "attribute", "5W1H", "question"]) == set(question_type) :
                                 question = title + "の" + q + "は" + W5H1 + "ですか?"
+                            elif set(["title", "attribute", "5W1H", "question", "example"]) == set(question_type) :
+                                original_question = title + "の" + q + "は" + W5H1 + "ですか?"
+                                example = make_example(example_dataset, title, q, original_question)
+                                question = example + title + "の" + q + "は" + W5H1 + "ですか?"
                             else:
                                 raise Exception
                         except Exception as e:
@@ -237,6 +283,7 @@ def process(args, dataset, attributes, attribute_to_qa, question_type):
 
 
 def process_formal(args, attribute_to_qa, question_type):
+    
     ENE = attr_list.get_ENE(args.category)
 
     attr_names = attr_list.get_attr_list(category=args.category)
@@ -245,6 +292,8 @@ def process_formal(args, attribute_to_qa, question_type):
 
     files = [f for f in iter_files(Path(args.html_dir))]
     data_size = len(files)
+    if "example" in question_type :
+        example_dataset = files
 
     for i, file in enumerate(files):
         page_id = Path(file).stem
@@ -301,6 +350,10 @@ def process_formal(args, attribute_to_qa, question_type):
                             question = q + "は" + W5H1 + "ですか?"
                         elif set(["title", "attribute", "5W1H", "question"]) == set(question_type) :
                             question = title + "の" + q + "は" + W5H1 + "ですか?"
+                        elif set(["title", "attribute", "5W1H", "question", "example"]) == set(question_type) :
+                            original_question = title + "の" + q + "は" + W5H1 + "ですか?"
+                            example = make_example(example_dataset, title, q, original_question)
+                            question = example + title + "の" + q + "は" + W5H1 + "ですか?"
                         else:
                             raise Exception
                     except Exception as e:
@@ -322,10 +375,19 @@ def process_formal(args, attribute_to_qa, question_type):
     return squad_data
 
 
+def set_seed(args):
+    random.seed(args.seed)
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--category', type=str, default=None,
                     help='Shinra category')
+    parser.add_argument('--train_num', type=int, default=None,
+                    help='Number of train data')
+    parser.add_argument('--dev_num', type=int, default=None,
+                    help='Number of dev data')
+    parser.add_argument('--test_num', type=int, default=None,
+                    help='Number of test data')
     parser.add_argument('--input', type=str, default=None)
     parser.add_argument('--output', type=str, default=None)
     parser.add_argument('--question_type', type=str, default="attribute",
@@ -344,8 +406,9 @@ def main():
     parser.add_argument('--html_dir', type=str, default=None)
     parser.add_argument('--html_tag', action='store_true',
                         help='')
+    parser.add_argument("--seed", default=42, type=int)
     args = parser.parse_args()
-
+    set_seed(args)
 
     answer = get_annotation(args.input)
     attribute_to_qa = get_attribute_to_qa(args.attribute_to_qa) #属性名と5W1Hの対応付けデータ
@@ -354,9 +417,15 @@ def main():
     id_dict, html, plain, attributes = liner2dict(answer, ene)
     print('attributes:', attributes)
 
-    squad_data = process(args, id_dict, attributes, attribute_to_qa, question_type)
+    squad_data = process(args, id_dict, attributes, attribute_to_qa, question_type, args.train_num, args.dev_num, args.test_num)
+    if (args.train_num is not None) and (args.dev_num is not None) and (args.test_num is not None):
+        split_dev = (args.train_num) / (args.train_num + args.dev_num + args.test_num)
+        split_test = (args.train_num + args.dev_num) / (args.train_num + args.dev_num + args.test_num)
+    else:
+        split_dev = args.split_dev
+        split_test = args.split_test
 
-    split_dataset = make_split_data(squad_data, split_nums=[args.split_dev, args.split_test])
+    split_dataset = make_split_data(squad_data, split_nums=[split_dev, split_test])
 
     with open(args.output.replace('.json', '-train.json'), 'w') as f:
         f.write(json.dumps({"data": split_dataset[0]}, ensure_ascii=False))

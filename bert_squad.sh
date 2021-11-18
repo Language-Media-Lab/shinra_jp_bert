@@ -3,17 +3,18 @@ export LANG=ja_JP.UTF-8
 
 batch_size=32
 eval_batch_size=32
+test_batch_size=32
 max_seq_length=384
 doc_stride=128
 mode=train
 label=shinra_jp_bert_html
 test_case_str=shinra_jp_bert_html
-data_dir=./data
+data_dir=../data
 
-work_dir=${data_dir}/2019JP_fixerror/${mode}-${label}
-output_dir=output_2019JP_ishii_baseline_City_fixerror
+work_dir=${data_dir}/2019JP_attr/${mode}-${label}
+output_dir=output_2019JP_attr_baseline
 
-html_data_dir=./data
+html_data_dir=../data
 LR=2e-05
 prefix=simple
 
@@ -32,24 +33,67 @@ bash _make_stdout_files.sh ${output_dir}
 #best_model_path=./output_question/${GROUP}_${test_case_str}_train_batch${batch_size}_epoch10_lr${LR}_seq${max_seq_length}/epoch-9
 
 # カテゴリ横断しない場合
-best_model_path=./models/NICT_BERT-base_JapaneseWikipedia_32K_BPE
+bast_model_path=./models/NICT_BERT-base_JapaneseWikipedia_32K_BPE
 
 #categories="Person Company City Airport Compound"
-#categories="Person Company City"
-categories="City"
+categories="Person"
 for target in ${categories[@]}; do
     echo $target
     # ターゲットカテゴリの学習
     ## STILTs有りの場合は以下のコード（--model_name_or_pathがある）
     #python3 bert_squad.py --do_train --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --data_dir ${work_dir} --model_name_or_path ${best_model_path} --output ${output_dir} --evaluate_during_training
     ## STILTs無しの場合は以下のコード（--model_name_or_pathが無い）
-    BEST_EPOCH=$(python3 bert_squad.py --do_train --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --data_dir ${work_dir} --output ${output_dir} --evaluate_during_training >> ${output_dir}/stdout_train.txt)
+    python3 bert_squad.py --do_train --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --data_dir ${work_dir} --output ${output_dir} --evaluate_during_training >> ${output_dir}/stdout_train.txt
+    BEST_EPOCH=${?}
     #BEST_EPOCH=9
     # ターゲットタスクの予測
-    python3 bert_squad.py --do_predict --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --best_model_dir /epoch-${BEST_EPOCH} --data_dir ${work_dir} --output ${output_dir} >> ${output_dir}/stdout_pred.txt
+    #python3 bert_squad.py --do_predict --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --best_model_dir /epoch-${BEST_EPOCH} --data_dir ${work_dir} --output ${output_dir} >> ${output_dir}/stdout_pred.txt
     # スコアリング
-    bash _bert_squad_scorer.sh ${target} ${LR} ${BEST_EPOCH} ${group_dir} ${prefix} ${test_case_str} ${output_dir} >> ${output_dir}/stdout_score.txt
+    #bash _bert_squad_scorer.sh ${target} ${LR} ${BEST_EPOCH} ${test_batch_size} ${group_dir} ${prefix} ${test_case_str} ${output_dir} >> ${output_dir}/stdout_score.txt ${work_dir}
 done
+
+#Exampleあり
+#work_dir=${data_dir}/debug200_2019JP_title_q_5W1H_ex_1/${mode}-${label}
+#output_dir=output_debug200_batch8_2019JP_title_q_5W1H_ex_1
+#
+#html_data_dir=../data
+#LR=2e-05
+#prefix=simple
+#
+#GROUP=JP5
+#
+#test_case_str=${test_case_str}_${GROUP}
+#group_dir=${html_data_dir}/JP-5
+#
+### 標準出力を保存するファイルを生成
+#bash _make_stdout_files.sh ${output_dir}
+#
+##categories_comma="Compound,Person,Company,City,Airport"
+## カテゴリ横断の学習
+##python3 bert_squad.py --do_train --group ${GROUP} --categories ${categories_comma} --not_with_negative --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --data_dir ${work_dir} --output ${output_dir} --evaluate_during_training
+## カテゴリ横断のbest model
+##best_model_path=./output_question/${GROUP}_${test_case_str}_train_batch${batch_size}_epoch10_lr${LR}_seq${max_seq_length}/epoch-9
+#
+## カテゴリ横断しない場合
+#bast_model_path=./models/NICT_BERT-base_JapaneseWikipedia_32K_BPE
+#
+##categories="Person Company City Airport Compound"
+#categories="Person"
+#for target in ${categories[@]}; do
+#    echo $target
+#    # ターゲットカテゴリの学習
+#    ## STILTs有りの場合は以下のコード（--model_name_or_pathがある）
+#    #python3 bert_squad.py --do_train --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --data_dir ${work_dir} --model_name_or_path ${best_model_path} --output ${output_dir} --evaluate_during_training
+#    ## STILTs無しの場合は以下のコード（--model_name_or_pathが無い）
+#    python3 bert_squad.py --do_train --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --data_dir ${work_dir} --output ${output_dir} --evaluate_during_training >> ${output_dir}/stdout_train.txt
+#    BEST_EPOCH=${?}
+#    #BEST_EPOCH=9
+#    # ターゲットタスクの予測
+#    python3 bert_squad.py --do_predict --category ${target} --per_gpu_train_batch_size ${batch_size} --per_gpu_eval_batch_size ${eval_batch_size} --learning_rate ${LR} --max_seq_length ${max_seq_length} --doc_stride ${doc_stride} --test_case_str ${test_case_str} --best_model_dir /epoch-${BEST_EPOCH} --data_dir ${work_dir} --output ${output_dir} >> ${output_dir}/stdout_pred.txt
+#    # スコアリング
+#    bash _bert_squad_scorer.sh ${target} ${LR} ${BEST_EPOCH} ${test_batch_size} ${group_dir} ${prefix} ${test_case_str} ${output_dir} >> ${output_dir}/stdout_score.txt ${work_dir}
+#done
+
 
 ##GROUP=Organization
 ##test_case_str=${test_case_str}_${GROUP}
