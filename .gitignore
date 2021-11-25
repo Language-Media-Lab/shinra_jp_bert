@@ -4,15 +4,12 @@ __pycache__/
 *$py.class
 
 .vscode/
-shinra_jp_scorer/
-shinra_jp_scorer/*
 data/*
 output/
 output*
 runs/
 models/
 lib/
-shinra_jp_scorer/
 core
 errormemo.txt
 print_attribute.py
