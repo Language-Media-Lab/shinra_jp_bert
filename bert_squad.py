@@ -87,9 +87,9 @@ parser.add_argument('--cache_test_case_str', type=str, default=None,
                     help='test case str')
 parser.add_argument("--predict_category", default=None, type=str,
                     help="comma separated predict category")
-parser.add_argument("--model_name_or_path", default='../models/NICT_BERT-base_JapaneseWikipedia_32K_BPE', type=str,
+parser.add_argument("--model_name_or_path", default='./models/NICT_BERT-base_JapaneseWikipedia_32K_BPE', type=str,
                     help="")
-parser.add_argument("--base_model_name_or_path", default='../models/NICT_BERT-base_JapaneseWikipedia_32K_BPE', type=str,
+parser.add_argument("--base_model_name_or_path", default='./models/NICT_BERT-base_JapaneseWikipedia_32K_BPE', type=str,
                     help="")
 parser.add_argument('--result_file_prefix', type=str, default='',
                     help='result file')
