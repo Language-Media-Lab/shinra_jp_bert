@@ -82,7 +82,7 @@ def make_example(dataset, target_title, target_attr, original_question):
     example =  ex_title + "の" + ex_attr + "は" + ex_ans + "です。"
     return str(example)
 
-def process(args, dataset, attributes, attribute_to_qa, question_type, train_num=None, dev_num=None, test_num=None):
+def process(args, dataset, attributes, question_type, attribute_to_qa=None, train_num=None, dev_num=None, test_num=None):
     ## example追加用Dict
     if "example" in question_type :
         example_dataset = dataset
@@ -185,14 +185,15 @@ def process(args, dataset, attributes, attribute_to_qa, question_type, train_num
                                     continue
                                 answers.append({"answer_start": answer_start_position, "answer_end": answer_end_position, "text": paragraph[answer_start_position:answer_end_position]})
                         
-                        
-                        try:
-                            W5H1 = attribute_to_qa_LIST[attribute_to_qa[args.category][q]]
-                        except Exception as e:
-                            print(e)
-                            print("Error! : can not read 5W1H")
-                            print("category : {}     attribute : {} ".format(args.category, q))
-                            exit()
+                        if attribute_to_qa is not None:
+                            try:
+                                W5H1 = attribute_to_qa_LIST[attribute_to_qa[args.category][q]]
+                            except Exception as e:
+                                print(e)
+                                print("Error! : can not read 5W1H")
+                                print("category : {}     attribute : {} ".format(args.category, q))
+                                exit()
+
                         ## create question 
                         try:
                             if set(["attribute"]) == set(question_type) :
@@ -226,13 +227,13 @@ def process(args, dataset, attributes, attribute_to_qa, question_type, train_num
                     if q in FLAG_ATTRS:
                         flags[q] = False
                     else:
-    
-                        try:
-                            W5H1 = attribute_to_qa_LIST[attribute_to_qa[args.category][q]]
-                        except Exception as e:
-                            print(e)
-                            print("Error! : can not read 5W1H")
-                            exit()
+                        if attribute_to_qa is not None:
+                            try:
+                                W5H1 = attribute_to_qa_LIST[attribute_to_qa[args.category][q]]
+                            except Exception as e:
+                                print(e)
+                                print("Error! : can not read 5W1H")
+                                exit()
                         
                         ## create question 
                         try:
@@ -282,7 +283,7 @@ def process(args, dataset, attributes, attribute_to_qa, question_type, train_num
     return squad_data
 
 
-def process_formal(args, attribute_to_qa, question_type):
+def process_formal(args, question_type, attribute_to_qa=None):
     
     ENE = attr_list.get_ENE(args.category)
 
@@ -328,13 +329,13 @@ def process_formal(args, attribute_to_qa, question_type):
                     q_idx += 1
                     q_id = str(page_id) + '_' + str(len(paragraphs)) + '_' + str(q_idx)
                     answers = []
-                    
-                    try:
-                        W5H1 = attribute_to_qa_LIST[attribute_to_qa[args.category][q]]
-                    except Exception as e:
-                        print(e)
-                        print("Error! : can not read 5W1H")
-                        exit()
+                    if attribute_to_qa is not None:
+                        try:
+                            W5H1 = attribute_to_qa_LIST[attribute_to_qa[args.category][q]]
+                        except Exception as e:
+                            print(e)
+                            print("Error! : can not read 5W1H")
+                            exit()
                     
                     ## create question 
                     try:
@@ -411,13 +412,15 @@ def main():
     set_seed(args)
 
     answer = get_annotation(args.input)
-    attribute_to_qa = get_attribute_to_qa(args.attribute_to_qa) #属性名と5W1Hの対応付けデータ
+    if args.attribute_to_qa is not None:
+        attribute_to_qa = get_attribute_to_qa(args.attribute_to_qa) #属性名と5W1Hの対応付けデータ
+    else:
+        attribute_to_qa = None
     ene = get_ene(answer)
     question_type=args.question_type.split(',')
     id_dict, html, plain, attributes = liner2dict(answer, ene)
     print('attributes:', attributes)
-
-    squad_data = process(args, id_dict, attributes, attribute_to_qa, question_type, args.train_num, args.dev_num, args.test_num)
+    squad_data = process(args, id_dict, attributes,  question_type, attribute_to_qa, args.train_num, args.dev_num, args.test_num)
     if (args.train_num is not None) and (args.dev_num is not None) and (args.test_num is not None):
         split_dev = (args.train_num) / (args.train_num + args.dev_num + args.test_num)
         split_test = (args.train_num + args.dev_num) / (args.train_num + args.dev_num + args.test_num)
