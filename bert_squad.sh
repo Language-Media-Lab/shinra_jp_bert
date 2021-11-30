@@ -9,12 +9,12 @@ doc_stride=128
 mode=train
 label=shinra_jp_bert_html
 test_case_str=shinra_jp_bert_html
-data_dir=../data
+data_dir=./data
 
 work_dir=${data_dir}/2019JP_attr/${mode}-${label}
 output_dir=output_2019JP_attr_baseline
 
-html_data_dir=../data
+html_data_dir=./data
 LR=2e-05
 prefix=simple
 
