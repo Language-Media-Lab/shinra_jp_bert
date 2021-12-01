@@ -39,6 +39,9 @@ from transformers.data.processors.squad import SquadProcessor, _is_whitespace
 from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers.file_utils import is_torch_available
 
+from habana_frameworks.torch.utils.library_loader import load_habana_module
+load_habana_module()
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--category', type=str, default=None,
                     help='Shinra category')
@@ -1418,11 +1421,11 @@ if os.path.exists(args.output_dir) and len(os.listdir(args.output_dir))>1 and ar
 
 # Setup CUDA, GPU & distributed training
 if args.local_rank == -1 or args.no_cuda:
-    device = torch.device("cuda" if torch.cuda.is_available() and not args.no_cuda else "cpu")
+    device = torch.device("hpu")
     args.n_gpu = torch.cuda.device_count()
 else:  # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
     torch.cuda.set_device(args.local_rank)
-    device = torch.device("cuda", args.local_rank)
+    device = torch.device("hpu")
     torch.distributed.init_process_group(backend='nccl')
     args.n_gpu = 1
 args.device = device
