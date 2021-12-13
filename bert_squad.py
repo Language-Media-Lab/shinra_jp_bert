@@ -39,8 +39,12 @@ from transformers.data.processors.squad import SquadProcessor, _is_whitespace
 from transformers import AdamW, get_linear_schedule_with_warmup
 from transformers.file_utils import is_torch_available
 
+## habana Library
 from habana_frameworks.torch.utils.library_loader import load_habana_module
 load_habana_module()
+import habana_frameworks.torch.core as htcore
+import habana_frameworks.torch.core.hccl
+import habana_frameworks.torch.core
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--category', type=str, default=None,
@@ -136,12 +140,16 @@ else:
 
 logger = logging.getLogger(__name__)
 
+os.environ["ID"] = str(args.local_rank)
+#os.environ["MASTER_ADDR"] = "localhost"
+#os.environ["MASTER_PORT"] = "6006"
+
 def set_seed(args):
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
-    if args.n_gpu > 0:
-        torch.cuda.manual_seed_all(args.seed)
+    #if args.n_gpu > 0:
+    #    torch.cuda.manual_seed_all(args.seed)
 
 def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
     """ Train the model """
@@ -161,7 +169,8 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
         args.num_train_epochs = args.max_steps // (len(train_dataloader) // args.gradient_accumulation_steps) + 1
     else:
         t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
-
+    
+    if args.make_cache: exit()
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ['bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
@@ -182,13 +191,16 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
 
     # multi-gpu training (should be after apex fp16 initialization)
     if args.n_gpu > 1:
-        model = torch.nn.DataParallel(model)
+        device_ids = list(range(args.n_gpu))
+        model = torch.nn.DataParallel(model, device_ids=device_ids)
+        #model.to(args.device)
 
     # Distributed training (should be after apex fp16 initialization)
     if args.local_rank != -1:
         model = torch.nn.parallel.DistributedDataParallel(model, device_ids=[args.local_rank],
                                                           output_device=args.local_rank,
                                                           find_unused_parameters=True)
+        model = model.module
 
     logger.info("***** load dev examples *****")
     # if args.JP5:
@@ -297,6 +309,7 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
                     torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
 
                 optimizer.step()
+                htcore.mark_step()
                 scheduler.step()  # Update learning rate schedule
                 model.zero_grad()
                 global_step += 1
@@ -312,14 +325,29 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
                     output_dir = os.path.join(args.output_dir, 'checkpoint-{}'.format(global_step))
                     if not os.path.exists(output_dir):
                         os.makedirs(output_dir)
+                    model = model.to('cpu')
                     model_to_save = model.module if hasattr(model, 'module') else model  # Take care of distributed/parallel training
                     model_to_save.save_pretrained(output_dir)
                     torch.save(args, os.path.join(output_dir, 'training_args.bin'))
                     logger.info("Saving model checkpoint to %s", output_dir)
+                    model = model.to('hpu')
 
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
                 break
+
+        # DistributedDataParallel時の評価
+        #if args.local_rank != -1 and args.evaluate_during_training:  
+        #    if args.local_rank == 0:
+        #        logger.info('epoch-{}: evaluate '.format(epoch_num)+'{}_{}_{}_{}'.format(args.output_dir, args.per_gpu_train_batch_size, args.num_train_epochs, args.learning_rate))
+        #    for c in args.categories:
+        #        results, predictions = evaluate(args, model, tokenizer, labels, pad_token_label_id, dev_dataset_all[c], dev_examples[c], dev_features_all[c], prefix='dev', output_shinra=False)
+        #        if args.local_rank == 0:
+        #            logger.info("***** evaluation  category : {}*****".format(c))
+        #            for key, value in results.items():
+        #                eval_key = 'eval_{}_{}'.format(c, key)
+        #                logs[eval_key] = value
+        #                if key == 'f1' : f1_scores.append(value)
 
         # devデータセットで評価    
         if args.local_rank in [-1, 0]:
@@ -333,6 +361,17 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
                         eval_key = 'eval_{}_{}'.format(c, key)
                         logs[eval_key] = value
                         if key == 'f1' : f1_scores.append(value)
+
+            elif args.local_rank == 0 and args.evaluate_during_training:  # Only evaluate when single GPU otherwise metrics may not average well
+                logger.info('epoch-{}: evaluate '.format(epoch_num)+'{}_{}_{}_{}'.format(args.output_dir, args.per_gpu_train_batch_size, args.num_train_epochs, args.learning_rate))
+                for c in args.categories:
+                    logger.info("***** evaluation  category : {}*****".format(c))
+                    results, predictions = evaluate(args, model, tokenizer, labels, pad_token_label_id, dev_dataset_all[c], dev_examples[c], dev_features_all[c], prefix='dev', output_shinra=False)
+                    for key, value in results.items():
+                        eval_key = 'eval_{}_{}'.format(c, key)
+                        logs[eval_key] = value
+                        if key == 'f1' : f1_scores.append(value)
+        
                 # else:
                 #     results, predictions = evaluate(args, model, tokenizer, labels, pad_token_label_id, dev_dataset, dev_examples, dev_features, prefix='dev', output_shinra=False)
                 #
@@ -341,14 +380,17 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
                 #         logs[eval_key] = value
                 #         if key == 'f1' : f1_scores.append(value)
 
+
             # save model
             output_dir = os.path.join(args.output_dir, 'epoch-{}'.format(epoch_num))
             if not os.path.exists(output_dir):
                 os.makedirs(output_dir)
+            model = model.to('cpu')
             model_to_save = model.module if hasattr(model, 'module') else model  # Take care of distributed/parallel training
             model_to_save.save_pretrained(output_dir)
             torch.save(args, os.path.join(output_dir, 'training_args.bin'))
             logger.info("Saving model checkpoint to %s", output_dir)
+            model = model.to('hpu')
 
             for key, value in logs.items():
                 tb_writer_valid.add_scalar(key, value, global_step)
@@ -420,7 +462,7 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
     args.eval_batch_size = args.per_gpu_eval_batch_size * max(1, args.n_gpu)
 
     # Note that DistributedSampler samples randomly
-    eval_sampler = SequentialSampler(dataset)
+    eval_sampler = SequentialSampler(dataset)  #if args.local_rank == -1 else DistributedSampler(dataset, shuffle=False)
     eval_dataloader = DataLoader(dataset, sampler=eval_sampler, batch_size=args.eval_batch_size)
 
     # multi-gpu evaluate
@@ -472,6 +514,8 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
             preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
             out_label_ids = np.append(out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0)
 
+        
+
     eval_loss = eval_loss / nb_eval_steps
     # preds_max = np.max(preds, axis=2)
     # preds_sum = np.sum(preds, axis=2)
@@ -495,27 +539,17 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
                 # preds_max_list[i].append(preds_max[i][j])
                 # preds_sum_list[i].append(preds_sum[i][j])
 
-    #binary_out_labal_list = MultiLabelBinarizer().fit_transform(out_label_list)
-    #binary_preds_list = MultiLabelBinarizer().fit_transform(preds_list)
-    #with open('./out_label_list.txt', mode='wb') as f:
-    #    pickle.dump(out_label_list,f)
-    #with open('./preds_list.txt', mode='wb') as f:
-    #    pickle.dump(preds_list,f)
-          
     scores = {
         "loss": eval_loss,
         "precision": precision_score(out_label_list, preds_list),
         "recall": recall_score(out_label_list, preds_list),
         "f1": f1_score(out_label_list, preds_list)
     }
-
     logger.info("***** Eval results %s *****", prefix)
     for key in sorted(scores.keys()):
         logger.info("  %s = %s", key, str(scores[key]))
-
     if not output_shinra:
         return scores, preds_list
-
     results = []
     ex_id = -1
     word_to_char_offset = None
@@ -533,12 +567,10 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
         gold = out_label_list[f_idx]
         pred_score = preds_score_list[f_idx]
         pred_score_softmax = softmax(preds_score_list[f_idx], axis=1)
-
         chunks = get_chunks(pred)
         # print(chunks)
         chunks_gold = get_chunks(gold)
         # print(chunks_gold)
-
         if not f.example_index in chunks_page: chunks_page[f.example_index] = dict()
         if not f.example_index in chunks_gold_page: chunks_gold_page[f.example_index] = dict()
         if ex_id != f.example_index:
@@ -553,21 +585,18 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
                 # added.add(w_index)
         ex_id = f.example_index
         valid_index = np.where(np.array(f.label_ids)!=-100)[0]
-
         para_text_len_sum = []
         for line in examples[f.example_index].context_text.split('\n'):
             if len(para_text_len_sum) == 0:
                 para_text_len_sum.append(len(line)+1)
             else:
                 para_text_len_sum.append(para_text_len_sum[-1] + len(line)+1)
-
         qas_id_split = examples[f.example_index].qas_id.split('_')
         if len(qas_id_split) == 3:
             page_id, para_id, q_id = qas_id_split
         else:
             page_id, q_id = qas_id_split
             para_id = 0
-
         attr = examples[f.example_index].attribute
         attributes.add(attr)
         if not attr in chunks_page[f.example_index]: chunks_page[f.example_index][attr] = set()
@@ -576,22 +605,18 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
         # print(chunks_page[f.example_index][attr])
         chunks_gold_page[f.example_index][attr].update(set([(para_id, c_s, c_e) for c_s, c_e in chunks_gold]))
         # print(chunks_gold_page[f.example_index][attr])
-
         for c_s, c_e in chunks:
             pred_score
             # score = np.mean(pred_max[c_s:c_e])
             score = np.mean(np.max(pred_score[c_s:c_e+1], axis = 1))
             score2 = np.mean(np.max(pred_score_softmax[c_s:c_e+1], axis=1))
-
             if f.token_to_orig_map[valid_index[c_s]] != 0 and c_s == 0: continue
             c_s = valid_index[c_s]
-
             if c_e == len(valid_index):
                 c_e = valid_index[c_e-1]
                 continue
             else:
                 c_e = valid_index[c_e]
-
             entry = dict()
             entry['page_id'] = page_id
             if current_page_id != page_id:
@@ -600,11 +625,8 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
             entry['para_id'] = para_id
             entry['q_id'] = q_id
             entry['span_start'] = f.span_start
-
             current_q_id = q_id
             entry['attribute'] = examples[f.example_index].attribute
-
-
             para_start_offset = word_to_char_offset[f.token_to_orig_map[c_s]]
             if f.token_to_orig_map[c_e]+1 < len(word_to_char_offset):
                 para_end_offset =  word_to_char_offset[f.token_to_orig_map[c_e]]
@@ -612,7 +634,6 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
                 para_end_offset = len(examples[f.example_index].context_text)-1
             start_line = -1
             end_line = -1
-
             for i, line_len_sum in enumerate(para_text_len_sum):
                 if start_line < 0 and para_start_offset  < line_len_sum:
                     start_line = i + f.para_start_line
@@ -628,25 +649,20 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
                         end_offset = para_end_offset
                 if start_line >= 0 and end_line >= 0:
                     break
-
             entry['html_offset'] = dict()
             entry['html_offset']['start'] = dict()
             entry['html_offset']['start']['line_id'] = start_line
             entry['html_offset']['start']['offset'] = start_offset
-
             entry['html_offset']['end'] = dict()
             entry['html_offset']['end']['line_id'] = end_line
             entry['html_offset']['end']['offset'] = end_offset
-
             entry['html_offset']['text'] = examples[f.example_index].context_text[para_start_offset:para_end_offset+1]
             entry['score'] = float(score * 0.1)
             entry['score2'] = float(score2)
-
             answer_str = '-'.join([entry['attribute'],str(start_line),str(start_offset),str(end_line),str(end_offset)])
             if not answer_str in  answerd_entry:
                 results.append(entry)
                 answerd_entry.add(answer_str)
-
     counter = defaultdict(lambda:{"TP":0, "TPFP":0, "TPFN":0})
     for ex_id,item in chunks_gold_page.items():
         for attribute in attributes:
@@ -661,7 +677,6 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
             counter[attribute]["TP"] += len(set(ans) & set(res))
             counter[attribute]["TPFP"] += len(set(res))
             counter[attribute]["TPFN"] += len(set(ans))
-
 
     return scores, preds_list, results
 
@@ -1420,15 +1435,30 @@ if os.path.exists(args.output_dir) and len(os.listdir(args.output_dir))>1 and ar
         raise ValueError("Output directory ({}) already exists and is not empty. Use --overwrite_output_dir to overcome.".format(args.output_dir))
 
 # Setup CUDA, GPU & distributed training
-if args.local_rank == -1 or args.no_cuda:
-    device = torch.device("hpu")
-    args.n_gpu = torch.cuda.device_count()
-else:  # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
-    torch.cuda.set_device(args.local_rank)
-    device = torch.device("hpu")
-    torch.distributed.init_process_group(backend='nccl')
-    args.n_gpu = 1
+#if args.local_rank == -1 or args.no_cuda:
+#    device = torch.device("hpu")
+#    args.n_gpu = torch.cuda.device_count()
+#else:  # Initializes the distributed backend which will take care of sychronizing nodes/GPUs
+#    torch.cuda.set_device(args.local_rank)
+#    device = torch.device("hpu")
+#    torch.distributed.init_process_group(backend='nccl')
+#    args.n_gpu = 1
+
+## Gaudi アクセラレータを使用
+os.environ["ID"] = str(args.local_rank)
+device = torch.device("hpu" if not args.no_cuda else "cpu")
+if (args.local_rank != -1): 
+    torch.distributed.init_process_group(backend='hccl', rank=args.local_rank, world_size=8)
+#torch.distributed.init_process_group(backend='hccl', init_method="env://", rank=args.local_rank, world_size=8)
+#torch.distributed.init_process_group(backend='hcl', rank=args.local_rank, world_size=8)
+args.n_gpu = 1
+
 args.device = device
+
+# patch torch cuda functions that are being unconditionally invoked
+# in the multiprocessing data loader
+#torch.cuda.current_device = lambda: None
+#torch.cuda.set_device = lambda x: None
 
 # Setup logging
 logging.basicConfig(format = '%(asctime)s - %(levelname)s - %(name)s -   %(message)s',
@@ -1680,3 +1710,6 @@ if args.do_predict and args.local_rank in [-1, 0]:
                     with open(output_test_results_file, "w") as writer:
                         for key in sorted(scores.keys()):
                             writer.write("{} = {}\n".format(key, str(scores[key])))
+
+# destrory all processes
+torch.distributed.destroy_process_group()

@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 
 .vscode/
-#data/*
+data/*
 data/testAirport_dist.json
 output/
 output*
@@ -12,6 +12,8 @@ runs/
 models/
 lib/
 core
+make_all_query2.sh
+make_cache*
 errormemo.txt
 print_attribute.py
 todo.txt
