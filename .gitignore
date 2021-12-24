@@ -33,3 +33,13 @@ print_epoch.sh
 sleep.py
 teshget_epoch.py
 test_liner_to_dict.py
+make_cache.sh
+bert_token_embeddings.py
+make_attr_count.py
+make_attr_count.sh
+make_cache2.sh
+make_cache3.sh
+test_json.py
+test_readID.py
+test_reduce_kakunin.py
+token_embeddings.png

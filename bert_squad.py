@@ -87,9 +87,9 @@ parser.add_argument('--cache_test_case_str', type=str, default=None,
                     help='test case str')
 parser.add_argument("--predict_category", default=None, type=str,
                     help="comma separated predict category")
-parser.add_argument("--model_name_or_path", default='./models/NICT_BERT-base_JapaneseWikipedia_32K_BPE', type=str,
+parser.add_argument("--model_name_or_path", default='../models/NICT_BERT-base_JapaneseWikipedia_32K_BPE', type=str,
                     help="")
-parser.add_argument("--base_model_name_or_path", default='./models/NICT_BERT-base_JapaneseWikipedia_32K_BPE', type=str,
+parser.add_argument("--base_model_name_or_path", default='../models/NICT_BERT-base_JapaneseWikipedia_32K_BPE', type=str,
                     help="")
 parser.add_argument('--result_file_prefix', type=str, default='',
                     help='result file')
@@ -142,6 +142,20 @@ def set_seed(args):
 
 def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
     """ Train the model """
+    ### 後で消す
+    ### 途中のエポックからスタートする場合
+    ###start_epoch = 6
+    ###try:
+    ###    output_dir = os.path.join(args.output_dir, 'epoch-{}'.format(start_epoch))
+    ###    model_path = os.path.join(output_dir, 'pytorch_model.bin')
+    ###    config_path = os.path.join(output_dir, 'config.json')
+    ###    config = BertConfig.from_json_file(config_path)
+    ###    model = BertForShinraJP.from_pretrained(model_path, config=config)
+    ###    model.to(args.device)
+    ###    logger.info('loaded model')
+    ###except Exception as e:
+    ###    logger.exception('Raise Exception (model load): %s', e)
+
     if args.local_rank in [-1, 0]:
         d_today = str(datetime.date.today())
         tensorboad_log_file_train = ('./runs/train_{}_{}_{}_batch{}_epoch{}_lr{}_seq{}'.format(d_today, args.category, args.output_dir,  args.per_gpu_train_batch_size, args.num_train_epochs, args.learning_rate, args.max_seq_length))
@@ -159,6 +173,7 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
     else:
         t_total = len(train_dataloader) // args.gradient_accumulation_steps * args.num_train_epochs
 
+    if args.make_cache: exit()
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ['bias', 'LayerNorm.weight']
     optimizer_grouped_parameters = [
@@ -242,18 +257,12 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
 
     # Training Start!
     for epoch_num in train_iterator:
-        ###後で消す=epoch-{0~9}のロード 
-        ###try:
-        ###    output_dir = os.path.join(args.output_dir, 'epoch-{}'.format(epoch_num))
-        ###    model_path = os.path.join(output_dir, 'pytorch_model.bin')
-        ###    config_path = os.path.join(output_dir, 'config.json')
-        ###    config = BertConfig.from_json_file(config_path)
-        ###    model = BertForShinraJP.from_pretrained(model_path, config=config)
-        ###    model.to(args.device)
-        ###except Exception as e:
-        ###    logger.exception('Raise Exception (model load): %s', e)
-        ###
+        ### 後で消す　途中のエポックからスタートする場合
+        ###if epoch_num <= start_epoch:
+        ###    continue
+
         epoch_iterator = tqdm(train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0])
+        
         for step, batch in enumerate(epoch_iterator):
             model.train()
             batch = tuple(t.to(args.device) for t in batch)
@@ -330,6 +339,16 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
                         eval_key = 'eval_{}_{}'.format(c, key)
                         logs[eval_key] = value
                         if key == 'f1' : f1_scores.append(value)
+                        
+            #elif args.local_rank == 0 and args.evaluate_during_training and epoch_num >= 5:  # 分散処理の場合，エポック数が5以上からシングルGPUで評価する．
+            #    logger.info('epoch-{}: evaluate '.format(epoch_num)+'{}_{}_{}_{}'.format(args.output_dir, args.per_gpu_train_batch_size, args.num_train_epochs, args.learning_rate))
+            #    for c in args.categories:
+            #        logger.info("***** evaluation  category : {}*****".format(c))
+            #        results, predictions = evaluate(args, model, tokenizer, labels, pad_token_label_id, dev_dataset_all[c], dev_examples[c], dev_features_all[c], prefix='dev', output_shinra=False)
+            #        for key, value in results.items():
+            #            eval_key = 'eval_{}_{}'.format(c, key)
+            #            logs[eval_key] = value
+            #            if key == 'f1' : f1_scores.append(value)
                 # else:
                 #     results, predictions = evaluate(args, model, tokenizer, labels, pad_token_label_id, dev_dataset, dev_examples, dev_features, prefix='dev', output_shinra=False)
                 #
@@ -1103,6 +1122,22 @@ def squad_convert_examples_to_features(examples, labels, tokenizer, max_seq_leng
         else:
             # all_start_positions = torch.tensor([f.start_position for f in features], dtype=torch.long)
             # all_end_positions = torch.tensor([f.end_position for f in features], dtype=torch.long)
+            
+            ### 後で消す
+            ## TensorDataset(の引数たちをjsonもしくはnumpyのあたりで保存
+            ###logger.info('all_input_ids : {}'.format(all_input_ids))
+            ###if not os.path.exists(args.data_dir+'/cached_dataset/'):
+            ###    os.makedirs(args.data_dir+'/cached_dataset/')
+            ###np.save(args.data_dir+'/cached_dataset/all_input_ids.npy', all_input_ids)
+            ###np.save(args.data_dir+'/cached_dataset/all_input_mask.npy', all_input_mask)
+            ###np.save(args.data_dir+'/cached_dataset/all_segment_ids.npy', all_segment_ids)
+            ###np.save(args.data_dir+'/cached_dataset/all_label_ids.npy', all_label_ids)
+            ###np.save(args.data_dir+'/cached_dataset/all_is_answerable.npy', all_is_answerable)
+            ###np.save(args.data_dir+'/cached_dataset/all_cls_index.npy', all_cls_index)
+            ###np.save(args.data_dir+'/cached_dataset/all_p_mask.npy', all_p_mask)
+            ###load_np = np.load(args.data_dir+'/cached_dataset/all_input_ids.npy')
+            ###x = torch.from_numpy(load_np.astype(np.int64)).clone()
+
             dataset = TensorDataset(all_input_ids, all_input_mask, all_segment_ids, all_label_ids, all_is_answerable,
                                     # all_start_positions, all_end_positions,
                                     all_cls_index, all_p_mask)

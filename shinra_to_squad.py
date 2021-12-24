@@ -50,39 +50,21 @@ def make_split_data(data_set, split_nums=[0.9]):
 
     return split_datasets
 
-
-def get_attribute_to_qa(path):
+def get_json_to_dict(path):
     '''
-    属性名と[5W1H]の対応付けアノテーションを辞書型として取得
+    jsonファイルを開いて，辞書型として返す
     '''
     d = {}
     with open(path, mode="r") as f:
         d = json.load(f)
     return d
 
-def make_example(dataset, target_title, target_attr, original_question):
-    # attrubuteが同じものをdatasetから抽出
-    ex_dict = {key:value for key, value in dataset.items() if  target_attr in list(value.keys()) }
-    
-    # 元々のQuestionからハッシュ値を生成 → これをシード値として使用する．
-    random.seed(original_question)
-    sample_example = dict(random.sample(ex_dict.items(), 1))
-    ex_title = list(sample_example.values())[0][target_attr][0]['title'] 
-    ex_attr = list(sample_example.values())[0][target_attr][0]['attribute']
-    ex_ans = list(sample_example.values())[0][target_attr][0]['text_offset']['text']
-    h = hash(original_question+'1')
-    while target_title == ex_title and target_attr == ex_attr:
-        print('追加用Exampleと元々のQuestionが同じでした．再度サンプリングします')
-        h += 1
-        random.seed(h)
-        sample_example = dict(random.sample(ex_dict.items(), 1))
-        ex_title = list(sample_example.values())[0][target_attr][0]['title'] 
-        ex_attr = list(sample_example.values())[0][target_attr][0]['attribute']
-        ex_ans = list(sample_example.values())[0][target_attr][0]['text_offset']['text']
-    example =  ex_title + "の" + ex_attr + "は" + ex_ans + "です。"
+def get_example(target_category, target_attr, ex_dict):
+    # attrubuteが同じものをex_dictから抽出
+    example =  ex_dict[target_category][target_attr]
     return str(example)
 
-def process(args, dataset, attributes, question_type, attribute_to_qa=None, train_num=None, dev_num=None, test_num=None):
+def process(args, dataset, attributes, question_type, attribute_to_qa=None, ex_dict=None, train_num=None, dev_num=None, test_num=None):
     ## example追加用Dict
     if "example" in question_type :
         example_dataset = dataset
@@ -202,6 +184,9 @@ def process(args, dataset, attributes, question_type, attribute_to_qa=None, trai
                                 question = title + "の" + q 
                             elif set(["attribute", "question"]) == set(question_type) :
                                 question = q + "は?"
+                            elif set(["attribute", "question", "example"]) == set(question_type) :
+                                example = get_example(args.category, q, ex_dict)
+                                question = q + "は?" + example 
                             elif set(["title", "attribute", "question"]) == set(question_type) :
                                 question = title + "の" + q + "は?"
                             elif set(["attribute","5W1H", "question" ]) == set(question_type) :
@@ -209,8 +194,8 @@ def process(args, dataset, attributes, question_type, attribute_to_qa=None, trai
                             elif set(["title", "attribute", "5W1H", "question"]) == set(question_type) :
                                 question = title + "の" + q + "は" + W5H1 + "ですか?"
                             elif set(["title", "attribute", "5W1H", "question", "example"]) == set(question_type) :
-                                original_question = title + "の" + q + "は" + W5H1 + "ですか?"
-                                example = make_example(example_dataset, title, q, original_question)
+                                 
+                                example = get_example(args.category, q, ex_dict)
                                 question = example + title + "の" + q + "は" + W5H1 + "ですか?"
                             else:
                                 raise Exception
@@ -243,6 +228,9 @@ def process(args, dataset, attributes, question_type, attribute_to_qa=None, trai
                                 question = title + "の" + q 
                             elif set(["attribute", "question"]) == set(question_type) :
                                 question = q + "は?"
+                            elif set(["attribute", "question", "example"]) == set(question_type) :
+                                example = get_example(args.category, q, ex_dict)
+                                question = q + "は?" + example
                             elif set(["title", "attribute", "question"]) == set(question_type) :
                                 question = title + "の" + q + "は?"
                             elif set(["attribute","5W1H", "question" ]) == set(question_type) :
@@ -250,8 +238,7 @@ def process(args, dataset, attributes, question_type, attribute_to_qa=None, trai
                             elif set(["title", "attribute", "5W1H", "question"]) == set(question_type) :
                                 question = title + "の" + q + "は" + W5H1 + "ですか?"
                             elif set(["title", "attribute", "5W1H", "question", "example"]) == set(question_type) :
-                                original_question = title + "の" + q + "は" + W5H1 + "ですか?"
-                                example = make_example(example_dataset, title, q, original_question)
+                                example = get_example(args.category, q, ex_dict)
                                 question = example + title + "の" + q + "は" + W5H1 + "ですか?"
                             else:
                                 raise Exception
@@ -283,7 +270,7 @@ def process(args, dataset, attributes, question_type, attribute_to_qa=None, trai
     return squad_data
 
 
-def process_formal(args, question_type, attribute_to_qa=None):
+def process_formal(args, question_type, attribute_to_qa=None, ex_dict=None):
     
     ENE = attr_list.get_ENE(args.category)
 
@@ -345,6 +332,9 @@ def process_formal(args, question_type, attribute_to_qa=None):
                             question = title + "の" + q 
                         elif set(["attribute", "question"]) == set(question_type) :
                             question = q + "は?"
+                        elif set(["attribute", "question", "example"]) == set(question_type) :
+                            example = get_example(args.category, q, ex_dict)
+                            question = q + "は?" + example 
                         elif set(["title", "attribute", "question"]) == set(question_type) :
                             question = title + "の" + q + "は?"
                         elif set(["attribute","5W1H", "question" ]) == set(question_type) :
@@ -352,8 +342,7 @@ def process_formal(args, question_type, attribute_to_qa=None):
                         elif set(["title", "attribute", "5W1H", "question"]) == set(question_type) :
                             question = title + "の" + q + "は" + W5H1 + "ですか?"
                         elif set(["title", "attribute", "5W1H", "question", "example"]) == set(question_type) :
-                            original_question = title + "の" + q + "は" + W5H1 + "ですか?"
-                            example = make_example(example_dataset, title, q, original_question)
+                            example = get_example(args.category, q, ex_dict)
                             question = example + title + "の" + q + "は" + W5H1 + "ですか?"
                         else:
                             raise Exception
@@ -405,6 +394,7 @@ def main():
     parser.add_argument('--formal', action='store_true',
                         help='formal mode')
     parser.add_argument('--html_dir', type=str, default=None)
+    parser.add_argument('--example_file_path', type=str, default=None)
     parser.add_argument('--html_tag', action='store_true',
                         help='')
     parser.add_argument("--seed", default=42, type=int)
@@ -412,15 +402,23 @@ def main():
     set_seed(args)
 
     answer = get_annotation(args.input)
+    question_type=args.question_type.split(',')
     if args.attribute_to_qa is not None:
-        attribute_to_qa = get_attribute_to_qa(args.attribute_to_qa) #属性名と5W1Hの対応付けデータ
+        attribute_to_qa = get_json_to_dict(args.attribute_to_qa) #属性名と5W1Hの対応付けデータを辞書型で取得
     else:
         attribute_to_qa = None
+    
+    ex_dict = None
+    if (args.example_file_path is not None) and ("example" in set(question_type)):
+        if os.path.exists(args.example_file_path) :
+            ex_dict = get_json_to_dict(args.example_file_path) #Exampleを辞書型で取得
+        else:
+            raise OSError(args.example_file_path+"is not found")
+
     ene = get_ene(answer)
-    question_type=args.question_type.split(',')
     id_dict, html, plain, attributes = liner2dict(answer, ene)
     print('attributes:', attributes)
-    squad_data = process(args, id_dict, attributes,  question_type, attribute_to_qa, args.train_num, args.dev_num, args.test_num)
+    squad_data = process(args, id_dict, attributes,  question_type, attribute_to_qa, ex_dict, args.train_num, args.dev_num, args.test_num)
     if (args.train_num is not None) and (args.dev_num is not None) and (args.test_num is not None):
         split_dev = (args.train_num) / (args.train_num + args.dev_num + args.test_num)
         split_test = (args.train_num + args.dev_num) / (args.train_num + args.dev_num + args.test_num)
@@ -430,22 +428,40 @@ def main():
 
     split_dataset = make_split_data(squad_data, split_nums=[split_dev, split_test])
 
+    ## train dataの保存
     with open(args.output.replace('.json', '-train.json'), 'w') as f:
         f.write(json.dumps({"data": split_dataset[0]}, ensure_ascii=False))
+    ## train WikipediaIDの保存
+    target_ids = []
+    for entry in split_dataset[0]:
+        target_ids.append(entry["WikipediaID"])
+    if target_ids:
+        with open(args.output.replace('.json', '-train-id.txt').replace('squad_', 'WikipediaID/'), 'w') as f:
+            f.write('\n'.join(target_ids))
 
+    ## dev dataの保存
     with open(args.output.replace('.json', '-dev.json'), 'w') as f:
         f.write(json.dumps({"data": split_dataset[1]}, ensure_ascii=False))
+    ## dev WikipediaIDの保存
+    target_ids = []
+    for entry in split_dataset[1]:
+        target_ids.append(entry["WikipediaID"])
+    if target_ids:
+        with open(args.output.replace('.json', '-dev-id.txt').replace('squad_', 'WikipediaID/'), 'w') as f:
+            f.write('\n'.join(target_ids))
 
     if not args.formal:
+        ## test dataの保存
         with open(args.output.replace('.json', '-test.json'), 'w') as f:
-            f.write(json.dumps({"data": split_dataset[2]}, ensure_ascii=False))
+            f.write(json.dumps({"data": split_dataset[2]}, ensure_ascii=False))                
 
+        ## test WikipediaIDの保存
         target_ids = []
         for entry in split_dataset[2]:
             target_ids.append(entry["WikipediaID"])
 
         if target_ids:
-            with open(args.output.replace('.json', '-test-id.txt').replace('squad_', ''), 'w') as f:
+            with open(args.output.replace('.json', '-test-id.txt').replace('squad_', 'WikipediaID/'), 'w') as f:
                 f.write('\n'.join(target_ids))
 
 main()

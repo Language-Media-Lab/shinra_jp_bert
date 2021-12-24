@@ -31,7 +31,7 @@ doc_stride=128
 model_dir=./${output_dir}/${TARGET}_${test_case_str}_train_batch${batch_size}_epoch10_lr${LR}_seq${max_seq_length}
 
 scorer_dir=./shinra_jp_scorer
-target_id_dir=$work_dir
+target_id_dir=${work_dir}/WikipediaID
 
 echo "EPOCH="${EPOCH}
 
