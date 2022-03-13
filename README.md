@@ -16,11 +16,16 @@ You need to download the [pre-trained BERT model (NICT BERT 日本語Pretrained�
  
 [MeCab-Juman Dictionary](https://drive.google.com/uc?export=download&id=0B4y35FiV1wh7X2pESGlLREpxdXM) 
 
-## Query Generation
 
+## Examples
+The correct answer examples used can be found in the `data/Examples` directory.
+If you want to create correct answer examples, you can do so with the following command.
 ```bash
 code/make_example.sh
-code/convert_shinra_to_squad.sh JP-5/ output_dir_name/
+```
+
+## Query Generation
+```bash
 code/make_all_baseline_query.sh
 code/make_all_example_query.sh
 ```
@@ -30,4 +35,5 @@ code/make_all_example_query.sh
 code/bert_squad.sh 
 ```
 
- 
+## Output
+The output labels from the experiment are located in the `output` directory. 
