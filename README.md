@@ -24,6 +24,7 @@ Each file should be stored in the following directory.
 
 ## The correct answer examples 
 The correct answer examples used can be found in the `data/Examples` directory.
+
 If you want to create correct answer examples, you can do so with the following command.
 ```bash
 code/make_example.sh
