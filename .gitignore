@@ -43,3 +43,5 @@ test_json.py
 test_readID.py
 test_reduce_kakunin.py
 token_embeddings.png
+analytics_note.ipynb
+analytics_note_tmp.ipynb

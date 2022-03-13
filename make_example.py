@@ -32,7 +32,8 @@ def get_query(target_attr, target_example, get_num):
     """
     if get_num > 3 and target_attr in ["地名の謂れ","製造方法","名前の謂れ"]: ##Exampleが3つ以上の場合，["地名の謂れ","製造方法","名前の謂れ"]は長すぎてしまうので，3つ以内とする．
         get_num = 3
-    
+    if len(target_example) < get_num: 
+        get_num = len(target_example)
     query = "例えば、"
 
     for i in range(get_num):
@@ -52,7 +53,10 @@ def get_example_list(dataset, target_attr, seed, get_num, train_WikiID):
             d = {"page_id" : page_id, "title":attrs[target_attr][0]['title'],  "text":attrs[target_attr][0]['text_offset']['text'] }
             example_subset.append(d)
     random.seed(seed)
-    example_dict = random.sample(example_subset,get_num)
+    if len(example_subset) < get_num: #get_numより数が少ない場合
+        example_dict = random.sample(example_subset,len(example_subset)) 
+    else:
+        example_dict = random.sample(example_subset,get_num)
     return example_dict 
 
 
@@ -93,6 +97,7 @@ def main():
     parser.add_argument('--output_dir', type=str, default=None)
     parser.add_argument("--seed", default=42, type=int)
     parser.add_argument("--example_num", default=3, type=int)
+    parser.add_argument("--output_file_name", default=None, type=str)
     args = parser.parse_args()
     set_seed(args)
     categories=["Person", "Company", "City", "Airport", "Compound"]
@@ -112,9 +117,14 @@ def main():
     if not os.path.exists(args.output_dir):
         os.makedirs(args.output_dir)
 
-    with open(args.output_dir+'/examples'+'_seed'+str(args.seed)+'_num'+str(args.example_num)+'.json', 'w') as f:
+    if args.output_file_name is not None:
+        output_file_name = args.output_file_name
+    else:
+        output_file_name = 'seed'+str(args.seed)+'_num'+str(args.example_num)
+    
+    with open(args.output_dir+'/examples_' + output_file_name + '.json', 'w') as f:
         f.write(json.dumps(example_dict_all, ensure_ascii=False, indent=4))
-    with open(args.output_dir+'/examples_query'+'_seed'+str(args.seed)+'_num'+str(args.example_num)+'.json', 'w') as f:
+    with open(args.output_dir+'/examples_query_' + output_file_name + '.json', 'w') as f:
         f.write(json.dumps(example_query_all, ensure_ascii=False, indent=4))
 
 main()
