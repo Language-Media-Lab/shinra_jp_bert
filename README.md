@@ -38,7 +38,8 @@ code/make_all_example_query.sh
  
 ## Train 
 ```bash
-code/bert_squad.sh 
+code/bert_squad_baseline.sh
+code/bert_squad_example.sh
 ```
 
 ## Output
