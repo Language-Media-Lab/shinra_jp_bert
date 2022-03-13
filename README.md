@@ -36,7 +36,7 @@ code/make_all_baseline_query.sh
 code/make_all_example_query.sh
 ```
  
-## Train 
+## Train & Validation & Test
 ```bash
 code/bert_squad_baseline.sh
 code/bert_squad_example.sh
