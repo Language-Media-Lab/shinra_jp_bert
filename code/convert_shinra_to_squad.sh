@@ -11,17 +11,11 @@ seed=$4
 group=JP-5
 mode=train
 label=shinra_jp_bert_html
-#question_type="attribute,question,example"
-#question_type="attribute,title,question,5W1H,example"
-
-echo example_num : ${example_num}
-echo seed : ${seed}
 
 data_dir=../data
 work_dir=${data_dir}/${dir_name}/${mode}-${label}
 mkdir -p ${work_dir}/WikipediaID
 
-# unzip ${data_dir}/${group}.zip -d ${data_dir}
 html_dir=${data_dir}/${group}/html
 datasets_dir=${data_dir}/${group}/annotation
 

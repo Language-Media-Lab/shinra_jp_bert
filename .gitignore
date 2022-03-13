@@ -6,8 +6,7 @@ __pycache__/
 .vscode/
 #data/*
 data/testAirport_dist.json
-output/
-output*
+output_*
 runs/
 models/
 lib/

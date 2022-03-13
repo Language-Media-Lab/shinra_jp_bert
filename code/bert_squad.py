@@ -75,8 +75,8 @@ parser.add_argument("--do_predict", action='store_true',
 parser.add_argument("--do_formal", action='store_true',
                     help="Whether to run eval on the dev set.")
 parser.add_argument('--best_model_dir', type=str, default=None)
-parser.add_argument('--data_dir', type=str, default='./data/work/bert_base_nict_bpe_htmltag')
-parser.add_argument('--output_dir', type=str, default='./output')
+parser.add_argument('--data_dir', type=str, default='../data/work/bert_base_nict_bpe_htmltag')
+parser.add_argument('--output_dir', type=str, default='../output')
 parser.add_argument('--not_with_negative', action='store_true',
                     help='include no answer data')
 parser.add_argument('--test_case_str', type=str, default='',
@@ -158,8 +158,8 @@ def train(args, train_dataset, model, tokenizer, labels, pad_token_label_id):
 
     if args.local_rank in [-1, 0]:
         d_today = str(datetime.date.today())
-        tensorboad_log_file_train = ('./runs/train_{}_{}_{}_batch{}_epoch{}_lr{}_seq{}'.format(d_today, args.category, args.output_dir,  args.per_gpu_train_batch_size, args.num_train_epochs, args.learning_rate, args.max_seq_length))
-        tensorboad_log_file_valid = ('./runs/valid_{}_{}_{}_batch{}_epoch{}_lr{}_seq{}'.format(d_today, args.category, args.output_dir,  args.per_gpu_train_batch_size, args.num_train_epochs, args.learning_rate, args.max_seq_length))
+        tensorboad_log_file_train = ('../runs/train_{}_{}_{}_batch{}_epoch{}_lr{}_seq{}'.format(d_today, args.category, args.output_dir,  args.per_gpu_train_batch_size, args.num_train_epochs, args.learning_rate, args.max_seq_length))
+        tensorboad_log_file_valid = ('../runs/valid_{}_{}_{}_batch{}_epoch{}_lr{}_seq{}'.format(d_today, args.category, args.output_dir,  args.per_gpu_train_batch_size, args.num_train_epochs, args.learning_rate, args.max_seq_length))
         tb_writer_train = SummaryWriter(log_dir=tensorboad_log_file_train)
         tb_writer_valid = SummaryWriter(log_dir=tensorboad_log_file_valid)
 
@@ -511,12 +511,6 @@ def evaluate(args, model, tokenizer, labels, pad_token_label_id, dataset, exampl
                 # preds_max_list[i].append(preds_max[i][j])
                 # preds_sum_list[i].append(preds_sum[i][j])
 
-    #binary_out_labal_list = MultiLabelBinarizer().fit_transform(out_label_list)
-    #binary_preds_list = MultiLabelBinarizer().fit_transform(preds_list)
-    #with open('./out_label_list.txt', mode='wb') as f:
-    #    pickle.dump(out_label_list,f)
-    #with open('./preds_list.txt', mode='wb') as f:
-    #    pickle.dump(preds_list,f)
           
     scores = {
         "loss": eval_loss,
@@ -1156,11 +1150,11 @@ class ShinraProcessor(SquadProcessor):
 
         self.tokenizer_name = tokenizer_name
         if self.tokenizer_name == 'mecab_juman':
-            self.tagger_jumandic = MeCab.Tagger(f"-Owakati -d ./lib/mecab/jumandic")
-            self.tagger_ipadic = MeCab.Tagger(f"-Owakati -d ./lib/mecab/ipadic")
+            self.tagger_jumandic = MeCab.Tagger(f"-Owakati -d ../lib/mecab/jumandic")
+            self.tagger_ipadic = MeCab.Tagger(f"-Owakati -d ../lib/mecab/ipadic")
 
         #elif self.tokenizer_name == 'mecab_ipadic':
-        #    self.tagger_ipadic = MeCab.Tagger(f"-Owakati -d ./lib/mecab/ipadic")
+        #    self.tagger_ipadic = MeCab.Tagger(f"-Owakati -d ../lib/mecab/ipadic")
 
         #self.tagger_ipadic = MeCab.Tagger(f"-Owakati")
         
